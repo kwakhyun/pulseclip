@@ -1,0 +1,18 @@
+{
+  "name": "PulseClip",
+  "short_name": "PulseClip",
+  "description": "무료 Windows 게임 녹화와 F8 즉시 리플레이",
+  "lang": "ko-KR",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#080a0f",
+  "theme_color": "#080a0f",
+  "icons": [
+    {
+      "src": "./assets/pulseclip-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

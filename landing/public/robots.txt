@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kwakhyun.github.io/pulseclip/sitemap.xml
