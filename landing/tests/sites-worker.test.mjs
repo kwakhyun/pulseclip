@@ -86,3 +86,27 @@ test("uses a direct installer download and keeps the product preview tilt static
   assert.doesNotMatch(appSource, /handleProductMove|resetProduct|onPointerLeave/);
   assert.doesNotMatch(styles, /--tilt-[xy]|product-stage:hover/);
 });
+
+test("uses natural Korean copy across the landing page and SEO metadata", async () => {
+  const [appSource, document] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(appSource, /플레이에 집중하세요\./);
+  assert.match(appSource, /명장면은 F8로 남기세요\./);
+  assert.match(appSource, /바로 전 45초가 저장됩니다\./);
+  assert.match(document, /계정 가입이나 클라우드 업로드가 필요 없습니다\./);
+
+  for (const awkwardCopy of [
+    "게임은 계속.",
+    "기록은 이미 완료.",
+    "최근 45초가 남습니다.",
+    "설정은 한 번.",
+    "다음 명장면에서는,",
+  ]) {
+    assert.ok(!appSource.includes(awkwardCopy));
+  }
+
+  assert.ok(!document.includes("게임은 계속. 기록은 이미 완료."));
+});

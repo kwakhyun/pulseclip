@@ -24,19 +24,19 @@ const ASSET_BASE = "./assets/";
 
 const proofItems = [
   {
-    label: "가격",
-    value: "무료 · MIT",
+    label: "이용료",
+    value: "무료",
   },
   {
-    label: "저장",
+    label: "저장 형식",
     value: "로컬 MP4",
   },
   {
-    label: "리플레이",
+    label: "리플레이 길이",
     value: "15–180초",
   },
   {
-    label: "저장 키",
+    label: "저장 단축키",
     value: "F8",
   },
 ];
@@ -45,19 +45,19 @@ const reliabilityItems = [
   {
     icon: Heartbeat,
     title: "녹화 전 상태 점검",
-    description: "코덱, 오디오, 저장공간, 단축키 충돌을 시작 전에 확인합니다.",
+    description: "녹화를 시작하기 전에 코덱, 오디오, 저장 공간, 단축키 충돌을 확인합니다.",
     status: "확인됨",
   },
   {
     icon: Gauge,
-    title: "디스크 안전 가드",
-    description: "남은 공간을 확인하고 임계치에 닿기 전에 녹화를 안전하게 마칩니다.",
-    status: "보호 중",
+    title: "저장 공간 보호",
+    description: "저장 공간이 부족해지기 전에 녹화를 안전하게 종료합니다.",
+    status: "작동 중",
   },
   {
     icon: ClockCounterClockwise,
     title: "중단 파일 복구",
-    description: "예기치 않은 종료 뒤에도 남은 .part 파일의 복구를 다음 실행에서 시도합니다.",
+    description: "녹화가 예기치 않게 중단되면 다음 실행 때 남은 .part 파일의 복구를 시도합니다.",
     status: "복구 가능",
   },
 ];
@@ -65,18 +65,18 @@ const reliabilityItems = [
 const steps = [
   {
     number: "01",
-    title: "화면과 오디오를 한 번 확인",
-    description: "전체 화면이나 게임 창을 고르고 화질, 게임 소리, 마이크 상태를 확인합니다.",
+    title: "화면과 오디오 확인",
+    description: "녹화할 화면이나 게임 창을 선택하고, 화질과 게임·마이크 소리를 확인합니다.",
   },
   {
     number: "02",
-    title: "리플레이 준비 켜기",
-    description: "15~180초 중 길이를 정하면 최근 구간만 메모리에서 순환 보관합니다.",
+    title: "리플레이 켜기",
+    description: "저장할 길이를 15~180초 사이에서 정하면 최근 구간을 메모리에 임시로 보관합니다.",
   },
   {
     number: "03",
-    title: "놓친 순간에 F8",
-    description: "기본 45초가 MP4 클립으로 변환되어 동영상/PulseClip에 저장됩니다.",
+    title: "명장면이 지나간 뒤 F8 누르기",
+    description: "바로 전 45초가 MP4 클립으로 변환되어 동영상/PulseClip 폴더에 저장됩니다.",
   },
 ];
 
@@ -84,32 +84,32 @@ const faqs = [
   {
     question: "PulseClip은 정말 무료인가요?",
     answer:
-      "네. PulseClip은 계정, 광고, 구독 없이 사용할 수 있는 MIT 라이선스 오픈소스 프로젝트입니다.",
+      "PulseClip은 계정, 광고, 구독 없이 쓸 수 있는 무료 오픈소스 앱입니다. 소스 코드는 MIT 라이선스로 공개되어 있습니다.",
   },
   {
     question: "즉시 리플레이는 어떻게 작동하나요?",
     answer:
-      "리플레이 준비를 켜면 최근 15~180초의 인코딩 데이터만 메모리에서 순환 보관합니다. 기본 설정에서는 F8을 누르는 순간 최근 45초를 MP4로 저장합니다.",
+      "리플레이를 켜면 최근 15~180초 분량의 영상을 메모리에 임시로 보관합니다. 기본 설정에서는 F8을 누를 때 바로 전 45초가 MP4로 저장됩니다.",
   },
   {
     question: "녹화 파일이 서버로 업로드되나요?",
     answer:
-      "아니요. 기본 설정에서 외부 서버로 네트워크 요청을 보내지 않으며, 영상과 오디오는 사용자가 지정한 로컬 폴더에만 저장됩니다.",
+      "아니요. 녹화한 영상과 오디오는 사용자가 지정한 로컬 폴더에만 저장되며, PulseClip은 파일을 외부 서버로 전송하지 않습니다.",
   },
   {
     question: "어떤 Windows 버전을 지원하나요?",
     answer:
-      "Windows 10 22H2 이상과 Windows 11을 대상으로 하며, x64와 arm64 설치 패키지를 지원하도록 구성되어 있습니다.",
+      "Windows 10 22H2 이상과 Windows 11을 지원합니다. x64와 Arm64용 설치 파일을 제공합니다.",
   },
   {
-    question: "게임 성능 부담은 어떻게 줄였나요?",
+    question: "게임 성능에 미치는 영향은 어느 정도인가요?",
     answer:
-      "일반 녹화와 즉시 리플레이가 하나의 인코딩 파이프라인을 공유하고, 가능한 환경에서는 H.264 하드웨어 인코딩을 우선 사용합니다. 실제 성능은 게임과 PC 구성에 따라 달라질 수 있습니다.",
+      "일반 녹화와 즉시 리플레이가 하나의 인코딩 과정을 공유하며, 지원되는 PC에서는 H.264 하드웨어 인코딩을 우선 사용합니다. 성능 차이는 게임과 PC 사양에 따라 달라질 수 있습니다.",
   },
   {
-    question: "DRM이나 보호된 콘텐츠도 녹화할 수 있나요?",
+    question: "DRM으로 보호된 콘텐츠도 녹화할 수 있나요?",
     answer:
-      "아니요. PulseClip은 보호 기능을 우회하지 않으며 Windows 또는 콘텐츠 제공자가 차단한 프레임은 녹화하지 않습니다.",
+      "아니요. PulseClip은 보호 기능을 우회하지 않습니다. Windows나 콘텐츠 제공자가 차단한 화면은 녹화할 수 없습니다.",
   },
 ];
 
@@ -207,12 +207,12 @@ function Hero() {
       <div className="hero-copy" data-reveal>
         <p className="product-meta"><span>Windows 10/11</span><span>v0.1.0 공개 베타</span></p>
         <h1 id="hero-title">
-          게임은 계속.
-          <span>기록은 이미 완료.</span>
+          플레이에 집중하세요.
+          <span>명장면은 F8로 남기세요.</span>
         </h1>
         <p className="hero-description">
-          무료 Windows 게임 녹화 앱. 리플레이 준비를 켜두고 놓친 순간에 F8을 누르세요.
-          <br />기본 45초가 계정이나 업로드 없이 내 PC에 MP4로 저장됩니다.
+          PulseClip은 무료 Windows 게임 녹화 앱입니다. 리플레이를 켜두고 명장면이 지나간 뒤 F8을 누르면,
+          <br />바로 전 45초가 내 PC에 MP4 파일로 저장됩니다. 계정 가입이나 클라우드 업로드는 필요 없습니다.
         </p>
 
         <div className="hero-actions">
@@ -226,8 +226,8 @@ function Hero() {
 
         <div className="hero-trust" aria-label="PulseClip 핵심 특징">
           <span>무료</span>
-          <span>계정 없음</span>
-          <span>외부 업로드 없음</span>
+          <span>계정 불필요</span>
+          <span>클라우드 업로드 없음</span>
           <span>MIT 오픈소스</span>
         </div>
       </div>
@@ -268,15 +268,15 @@ function ReplaySection({ isSaved, onReplay }) {
       <div className="content-shell split-layout">
         <div className="section-copy" data-reveal>
           <p className="section-label">즉시 리플레이</p>
-          <h2 id="replay-title">놓친 순간에 F8.<span>최근 45초가 남습니다.</span></h2>
+          <h2 id="replay-title">F8을 누르면 <span>바로 전 45초가 저장됩니다.</span></h2>
           <p>
-            최근 구간만 메모리에서 순환 보관하므로 계속 녹화할 필요가 없습니다.
-            장면이 지나간 뒤 F8을 누르면 기본 45초가 MP4 클립이 됩니다.
+            리플레이를 켜두면 최근 구간만 메모리에 임시로 보관합니다.
+            장면이 지나간 뒤 F8을 눌러도 바로 전 45초를 MP4 클립으로 저장할 수 있습니다.
           </p>
           <dl className="feature-specs">
-            <div><dt>버퍼 길이</dt><dd>15–180초</dd></div>
-            <div><dt>인코딩</dt><dd>H.264 우선</dd></div>
-            <div><dt>파이프라인</dt><dd>1회 인코딩</dd></div>
+            <div><dt>리플레이 길이</dt><dd>15–180초</dd></div>
+            <div><dt>기본 코덱</dt><dd>H.264</dd></div>
+            <div><dt>인코딩 횟수</dt><dd>1회</dd></div>
           </dl>
         </div>
 
@@ -285,12 +285,12 @@ function ReplaySection({ isSaved, onReplay }) {
             className={`replay-visual${isSaved ? " is-saved" : ""}`}
             type="button"
             onClick={onReplay}
-            aria-label="F8 즉시 리플레이 저장 데모 실행"
+            aria-label="F8 즉시 리플레이 동작 미리보기"
             aria-pressed={isSaved}
           >
             <img src={`${ASSET_BASE}generated/f8-replay.png`} alt="" width="760" height="520" />
             <span className="replay-visual__hint">
-              <Key size={17} weight="fill" /> 클릭 또는 F8로 동작 확인
+              <Key size={17} weight="fill" /> 클릭하거나 F8을 눌러보세요
             </span>
           </button>
         </div>
@@ -315,21 +315,21 @@ function PrivacySection() {
           </div>
           <dl>
             <div><dt>계정</dt><dd>필요 없음</dd></div>
-            <div><dt>외부 전송</dt><dd>기본 없음</dd></div>
+            <div><dt>외부 전송</dt><dd>없음</dd></div>
             <div><dt>자동 정리</dt><dd>용량 기준</dd></div>
           </dl>
-          <p><CloudSlash size={18} weight="duotone" /> 클립은 지정한 폴더 밖으로 전송되지 않습니다.</p>
+          <p><CloudSlash size={18} weight="duotone" /> 클립을 외부 서버로 전송하지 않습니다.</p>
         </div>
         <div className="section-copy" data-reveal>
           <p className="section-label section-label--mint">저장 위치</p>
-          <h2 id="privacy-title">영상은 <span>내 PC 밖으로</span> 나가지 않습니다.</h2>
+          <h2 id="privacy-title">녹화 파일은 <span>내 PC에만</span> 저장됩니다.</h2>
           <p>
-            캡처 영상, 게임 소리, 마이크는 사용자가 지정한 로컬 폴더에만 저장됩니다.
-            기본 설정에서는 외부 서버로 전송하지 않습니다.
+            녹화 영상과 게임·마이크 소리는 사용자가 지정한 로컬 폴더에 저장됩니다.
+            PulseClip은 파일을 외부 서버로 전송하지 않습니다.
           </p>
           <div className="privacy-facts">
-            <p><LockKey size={20} weight="duotone" /><span><strong>로그인 없이 사용</strong><small>계정 생성이나 구독 절차가 없습니다.</small></span></p>
-            <p><CloudSlash size={20} weight="duotone" /><span><strong>기본 외부 업로드 없음</strong><small>녹화 데이터는 지정한 로컬 폴더에만 기록됩니다.</small></span></p>
+            <p><LockKey size={20} weight="duotone" /><span><strong>로그인 없이 바로 사용</strong><small>계정을 만들거나 구독할 필요가 없습니다.</small></span></p>
+            <p><CloudSlash size={20} weight="duotone" /><span><strong>외부 업로드 없음</strong><small>녹화 파일은 지정한 폴더에만 저장됩니다.</small></span></p>
           </div>
           <a className="text-link" href={`${GITHUB_URL}/blob/main/docs/SECURITY.md`} target="_blank" rel="noreferrer">
             보안과 개인정보 원칙 보기 <ArrowUpRight size={15} weight="bold" />
@@ -346,12 +346,12 @@ function ReliabilitySection() {
       <div className="content-shell reliability-layout">
         <header className="section-heading" data-reveal>
           <p className="section-label">녹화 전 점검</p>
-          <h2 id="reliability-title">녹화를 시작하기 전에,<br />문제를 먼저 찾습니다.</h2>
-          <p>코덱, 오디오, 저장공간, 단축키 충돌을 확인하고 문제가 있으면 시작 전에 해결 방법을 안내합니다.</p>
+          <h2 id="reliability-title">녹화 전에<br />문제를 미리 확인합니다.</h2>
+          <p>코덱, 오디오, 저장 공간, 단축키 충돌을 먼저 확인합니다. 문제가 있으면 녹화를 시작하기 전에 해결 방법을 안내합니다.</p>
         </header>
         <div className="diagnostic-panel" data-reveal>
           <header>
-            <div><span>시작 준비 상태</span><strong>녹화 가능</strong></div>
+            <div><span>녹화 준비 상태</span><strong>녹화 가능</strong></div>
             <span className="diagnostic-summary"><CheckCircle size={17} weight="fill" /> 3개 항목 정상</span>
           </header>
           <ul>
@@ -363,7 +363,7 @@ function ReliabilitySection() {
               </li>
             ))}
           </ul>
-          <footer>문제가 발견되면 녹화를 시작하지 않고 해당 설정으로 바로 안내합니다.</footer>
+          <footer>문제가 발견되면 녹화를 시작하지 않고, 확인이 필요한 설정을 바로 보여줍니다.</footer>
         </div>
       </div>
     </section>
@@ -376,8 +376,8 @@ function HowItWorks() {
       <div className="content-shell how-layout">
         <header className="section-heading" data-reveal>
           <p className="section-label">사용 흐름</p>
-          <h2 id="how-title">설정은 한 번.<br />저장은 F8 한 번.</h2>
-          <p>복잡한 방송 설정 없이 화면과 오디오를 확인한 뒤 리플레이 준비만 켜두세요.</p>
+          <h2 id="how-title">한 번 설정해 두면,<br />F8로 바로 저장할 수 있습니다.</h2>
+          <p>복잡한 방송용 설정은 필요 없습니다. 화면과 오디오를 확인한 뒤 리플레이를 켜두세요.</p>
         </header>
         <ol className="steps-list">
           {steps.map(({ number, title, description }) => (
@@ -400,7 +400,7 @@ function FaqSection() {
         <header className="section-heading" data-reveal>
           <p className="section-label">설치 전 확인</p>
           <h2 id="faq-title">설치 전에<br />확인하세요.</h2>
-          <p>지원 환경, 저장 방식, 성능과 보안 정책을 공개된 소스에서 확인할 수 있습니다.</p>
+          <p>지원 환경과 저장 방식, 성능, 보안 정책을 미리 확인해 보세요. 자세한 내용은 GitHub에 공개되어 있습니다.</p>
           <a className="text-link" href={GITHUB_URL} target="_blank" rel="noreferrer">
             GitHub 저장소 보기 <ArrowUpRight size={15} weight="bold" />
           </a>
@@ -430,8 +430,8 @@ function FinalCta() {
       <div className="content-shell final-cta__content" data-reveal>
         <img className="cta-icon" src={`${ASSET_BASE}pulseclip-icon.png`} alt="" width="70" height="70" loading="lazy" />
         <p className="release-line">Windows 10/11 · v0.1.0</p>
-        <h2 id="final-cta-title">다음 명장면에서는,<br /><span>F8만 누르세요.</span></h2>
-        <p>기본 45초를 내 PC에 MP4로 저장합니다.</p>
+        <h2 id="final-cta-title">명장면을 놓쳤다면,<br /><span>F8을 누르세요.</span></h2>
+        <p>바로 전 45초를 MP4로 내 PC에 저장합니다.</p>
         <div className="hero-actions">
           <DownloadButton />
           <a className="button button--secondary" href={GITHUB_URL} target="_blank" rel="noreferrer">
@@ -449,7 +449,7 @@ function Footer() {
     <footer className="site-footer">
       <div className="content-shell footer-inner">
         <Brand />
-        <p>계정과 클라우드 없이, 게임의 결정적인 순간을 내 PC에 남기는 무료 녹화 앱.</p>
+        <p>계정이나 클라우드 없이 게임의 결정적인 순간을 내 PC에 저장하는 무료 녹화 앱입니다.</p>
         <nav aria-label="보조 탐색">
           <a href={`${GITHUB_URL}/blob/main/LICENSE`} target="_blank" rel="noreferrer">MIT License</a>
           <a href={`${GITHUB_URL}/blob/main/docs/SECURITY.md`} target="_blank" rel="noreferrer">보안</a>
@@ -527,7 +527,7 @@ export function App() {
       <Footer />
       <div className={`demo-toast${isSaved ? " is-visible" : ""}`} role="status" aria-live="polite">
         <CheckCircle size={23} weight="fill" />
-        <span><strong>F8 동작 미리보기</strong><small>실제 앱에서는 최근 45초를 로컬 MP4로 저장합니다.</small></span>
+        <span><strong>F8 동작을 확인했습니다</strong><small>실제 앱에서는 바로 전 45초가 내 PC에 저장됩니다.</small></span>
       </div>
     </>
   );

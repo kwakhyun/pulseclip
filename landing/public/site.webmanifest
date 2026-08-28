@@ -1,7 +1,7 @@
 {
   "name": "PulseClip",
   "short_name": "PulseClip",
-  "description": "무료 Windows 게임 녹화와 F8 즉시 리플레이",
+  "description": "F8을 누르면 바로 전 플레이를 저장하는 무료 Windows 게임 녹화 앱",
   "lang": "ko-KR",
   "start_url": "./",
   "display": "standalone",
