@@ -2,7 +2,7 @@
 
 ![PulseClip icon](assets/brand/pulseclip-icon-master.png)
 
-[기능 고도화 로드맵](docs/FEATURE_ROADMAP.md) · [아이콘 제작 및 산출물](assets/brand/PULSECLIP_ICON.md)
+[공식 웹사이트](https://kwakhyun.github.io/pulseclip/) · [Windows 다운로드](https://github.com/kwakhyun/pulseclip/releases/latest) · [기능 고도화 로드맵](docs/FEATURE_ROADMAP.md) · [아이콘 제작 및 산출물](assets/brand/PULSECLIP_ICON.md)
 
 PulseClip은 Windows용 로컬 우선 게임 녹화 앱입니다. 화면 또는 게임 창을 한 번만 인코딩하면서 즉시 리플레이 버퍼와 일반 녹화를 함께 제공하고, 결과를 로컬 MP4 보관함에서 바로 재생·관리합니다.
 
@@ -23,6 +23,8 @@ PulseClip은 Windows용 로컬 우선 게임 녹화 앱입니다. 화면 또는 
 - 샌드박스 렌더러와 검증된 최소 IPC 브리지
 
 ## 빠른 시작
+
+일반 사용자는 [최신 Windows 설치 파일](https://github.com/kwakhyun/pulseclip/releases/latest)을 내려받아 설치할 수 있습니다. `PulseClip-0.1.0-Setup.exe`는 x64와 arm64를 함께 포함하며, 용량을 줄이려면 아키텍처별 설치 파일을 선택하세요.
 
 Windows 10 22H2 이상, Node.js 22 이상이 필요합니다.
 
@@ -52,13 +54,16 @@ src/preload    샌드박스용 최소 타입 브리지
 src/renderer   React UI와 단일 인코딩 캡처 엔진
 src/shared     타입, IPC 계약, 설정 검증
 docs           제품·아키텍처·보안·릴리스 문서
+landing        SEO 프리렌더 랜딩 페이지와 GitHub Pages 빌드
 ```
 
 상세 내용은 [제품 기획](docs/PRODUCT.md), [아키텍처](docs/ARCHITECTURE.md), [보안 모델](docs/SECURITY.md), [릴리스 가이드](docs/RELEASE.md)를 참고하세요.
 
-## 출시 전 운영 항목
+## 공개 베타 안내
 
-소스와 패키지는 배포 가능한 프로덕션 기반을 갖추고 있지만 공개 상용 배포 전에는 조직의 코드 서명 인증서, 개인정보 처리방침/지원 채널, 자동 업데이트 피드, Intel·NVIDIA·AMD 실기기 장시간 매트릭스 테스트가 필요합니다. DRM 또는 보호된 콘텐츠의 캡처 우회는 지원하지 않습니다.
+`v0.1.0`은 공개 베타이며 아직 Authenticode 코드 서명이 없습니다. Windows SmartScreen이 게시자를 확인할 수 없다는 경고를 표시할 수 있으므로 Release에 첨부된 `SHA256SUMS.txt`로 무결성을 확인하세요. 신뢰된 코드 서명, 자동 업데이트 피드, Intel·NVIDIA·AMD 실기기 장시간 매트릭스 테스트는 다음 출시 고도화 항목입니다. DRM 또는 보호된 콘텐츠의 캡처 우회는 지원하지 않습니다.
+
+일반 문제는 [GitHub Issues](https://github.com/kwakhyun/pulseclip/issues)에, 보안 문제는 저장소의 비공개 취약점 신고 기능으로 알려주세요.
 
 ## 라이선스
 
