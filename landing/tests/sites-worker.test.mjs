@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 import worker from "../worker/index.js";
 
@@ -65,4 +65,24 @@ test("emits the files required by Sites packaging", async () => {
   await access(new URL("../dist/client/index.html", import.meta.url));
   await access(new URL("../dist/server/index.js", import.meta.url));
   await access(new URL("../dist/.openai/hosting.json", import.meta.url));
+});
+
+test("uses a direct installer download and keeps the product preview tilt static", async () => {
+  const [appSource, styles, document] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+  ]);
+
+  const installerPath =
+    "releases/download/v0.1.0/PulseClip-0.1.0-Setup.exe";
+
+  assert.ok(
+    appSource.includes(
+      "releases/download/v${RELEASE_VERSION}/PulseClip-${RELEASE_VERSION}-Setup.exe",
+    ),
+  );
+  assert.ok(document.includes(installerPath));
+  assert.doesNotMatch(appSource, /handleProductMove|resetProduct|onPointerLeave/);
+  assert.doesNotMatch(styles, /--tilt-[xy]|product-stage:hover/);
 });

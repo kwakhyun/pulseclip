@@ -42,8 +42,8 @@ The source references and implementation are placed in the same combined image i
 - Full-view and focused combined comparisons show no remaining actionable P0, P1, or P2 visual mismatches.
 - Production build, Sites packaging tests, Electron typecheck/tests/build, image loading, and core interactions all pass. The final production dependency audit reports 0 vulnerabilities.
 
-## External launch dependency
+## Release delivery
 
-The code is launch-ready, but the GitHub repository is currently private and has no published release. The CTA is intentionally wired to `/releases/latest`; it becomes a working public download path after repository visibility and the first Windows release are explicitly approved and published.
+The repository and `v0.1.0` release are public. All landing-page download CTAs point directly to the combined x64/arm64 installer instead of routing visitors through the GitHub release page.
 
 final result: passed

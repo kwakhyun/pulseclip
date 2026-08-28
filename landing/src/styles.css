@@ -441,9 +441,6 @@ ol {
 }
 
 .product-stage {
-  --tilt-x: -2deg;
-  --tilt-y: -4deg;
-  --glow-x: 50%;
   position: relative;
   z-index: 2;
   width: min(1180px, calc(100% - 24px));
@@ -457,10 +454,8 @@ ol {
   border-radius: 15px;
   background: #090b10;
   box-shadow: 0 40px 84px rgba(0, 0, 0, 0.52);
-  transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform: rotateX(-2deg) rotateY(-4deg);
   transform-style: preserve-3d;
-  transition: transform 180ms ease-out, box-shadow 180ms ease;
-  will-change: transform;
 }
 
 .product-window img {
@@ -468,10 +463,6 @@ ol {
   height: auto;
   aspect-ratio: 1442 / 901;
   object-fit: cover;
-}
-
-.product-stage:hover .product-window {
-  box-shadow: 0 44px 92px rgba(0, 0, 0, 0.56);
 }
 
 .proof-strip {
@@ -1481,8 +1472,7 @@ ol {
     transform: none;
   }
 
-  .product-window,
-  .product-stage:hover .product-window {
+  .product-window {
     transform: none;
   }
 }

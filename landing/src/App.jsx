@@ -18,7 +18,8 @@ import {
 } from "@phosphor-icons/react";
 
 const GITHUB_URL = "https://github.com/kwakhyun/pulseclip";
-const DOWNLOAD_URL = `${GITHUB_URL}/releases/latest`;
+const RELEASE_VERSION = "0.1.0";
+const DOWNLOAD_URL = `${GITHUB_URL}/releases/download/v${RELEASE_VERSION}/PulseClip-${RELEASE_VERSION}-Setup.exe`;
 const ASSET_BASE = "./assets/";
 
 const proofItems = [
@@ -129,12 +130,10 @@ function DownloadButton({ className = "", compact = false }) {
     <a
       className={`button button--primary ${className}`.trim()}
       href={DOWNLOAD_URL}
-      target="_blank"
-      rel="noreferrer"
-      aria-label="PulseClip Windows 설치 파일 다운로드 페이지 열기"
+      aria-label="PulseClip Windows 통합 설치 파일 바로 다운로드"
     >
       <WindowsLogo size={compact ? 18 : 22} weight="fill" aria-hidden="true" />
-      <span>{compact ? "v0.1.0 다운로드" : "Windows용 무료 다운로드"}</span>
+      <span>{compact ? `v${RELEASE_VERSION} 다운로드` : "Windows용 무료 다운로드"}</span>
       {!compact && <ArrowRight size={18} weight="bold" aria-hidden="true" />}
     </a>
   );
@@ -198,22 +197,6 @@ function Hero() {
     event.currentTarget.style.setProperty("--wave-y-back", `${y * -9.1}px`);
   };
 
-  const handleProductMove = (event) => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width - 0.5;
-    const y = (event.clientY - rect.top) / rect.height - 0.5;
-    event.currentTarget.style.setProperty("--tilt-x", `${-2 + y * -3}deg`);
-    event.currentTarget.style.setProperty("--tilt-y", `${-4 + x * 6}deg`);
-    event.currentTarget.style.setProperty("--glow-x", `${50 + x * 16}%`);
-  };
-
-  const resetProduct = (event) => {
-    event.currentTarget.style.setProperty("--tilt-x", "-2deg");
-    event.currentTarget.style.setProperty("--tilt-y", "-4deg");
-    event.currentTarget.style.setProperty("--glow-x", "50%");
-  };
-
   return (
     <section className="hero" id="top" onPointerMove={handleHeroMove} aria-labelledby="hero-title">
       <div className="hero-current" aria-hidden="true">
@@ -249,12 +232,7 @@ function Hero() {
         </div>
       </div>
 
-      <div
-        className="product-stage"
-        onPointerMove={handleProductMove}
-        onPointerLeave={resetProduct}
-        data-reveal
-      >
+      <div className="product-stage" data-reveal>
         <figure className="product-window">
           <img
             src={`${ASSET_BASE}pulseclip-app-home.jpg`}

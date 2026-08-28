@@ -25,6 +25,6 @@ npm run preview
 
 프로덕션 빌드는 `dist/client`에 정적 페이지를 만들고, Sites 호스팅에 필요한 `dist/server/index.js`와 `dist/.openai/hosting.json`도 함께 생성합니다.
 
-## Launch dependency
+## Download delivery
 
-다운로드 버튼은 `https://github.com/kwakhyun/pulseclip/releases/latest`에 연결되어 있습니다. 공개 전환 시 GitHub 저장소 공개 설정, 첫 Windows 릴리스 업로드, canonical 도메인의 실제 호스팅 연결이 필요합니다.
+다운로드 버튼은 `https://github.com/kwakhyun/pulseclip/releases/download/v0.1.0/PulseClip-0.1.0-Setup.exe`에 직접 연결됩니다. 이 통합 설치 파일은 x64와 arm64를 함께 포함합니다. 새 릴리스에서는 `src/App.jsx`의 `RELEASE_VERSION`과 `index.html`의 JSON-LD `downloadUrl`을 함께 갱신해야 합니다.
