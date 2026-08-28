@@ -1,0 +1,30 @@
+export const IPC = {
+  bootstrap: 'app:bootstrap',
+  listSources: 'capture:list-sources',
+  prepareCapture: 'capture:prepare',
+  updateSettings: 'settings:update',
+  chooseOutputFolder: 'settings:choose-output-folder',
+  listClips: 'clips:list',
+  getDiskSpace: 'storage:disk-space',
+  runDiagnostics: 'diagnostics:run',
+  exportDiagnostics: 'diagnostics:export',
+  favoriteClip: 'clips:favorite',
+  deleteClip: 'clips:delete',
+  revealClip: 'clips:reveal',
+  openClip: 'clips:open',
+  beginFile: 'files:begin',
+  appendFile: 'files:append',
+  finalizeFile: 'files:finalize',
+  abortFile: 'files:abort',
+  notify: 'app:notify',
+  reportRuntimeStatus: 'app:runtime-status',
+  windowAction: 'window:action',
+} as const;
+
+export const APP_EVENTS = [
+  'shortcut:save-replay',
+  'shortcut:toggle-recording',
+  'capture:stop-requested',
+  'storage:safety-stop-requested',
+  'app:show',
+] as const;

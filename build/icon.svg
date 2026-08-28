@@ -1,0 +1,13 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pulseclip" x1="32" y1="24" x2="226" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF625F"/>
+      <stop offset="1" stop-color="#FF3D71"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="42" fill="url(#pulseclip)"/>
+  <path d="M170 76A72 72 0 1 0 169 180" fill="none" stroke="white" stroke-width="27" stroke-linecap="round"/>
+  <path d="M144 76H170V102" fill="none" stroke="white" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="123" cy="128" r="23" fill="white"/>
+  <path d="M180 109L211 128L180 147V109Z" fill="white" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+</svg>
