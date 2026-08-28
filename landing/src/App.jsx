@@ -6,7 +6,6 @@ import {
   CheckCircle,
   ClockCounterClockwise,
   CloudSlash,
-  GameController,
   Gauge,
   GithubLogo,
   HardDrive,
@@ -14,10 +13,6 @@ import {
   Key,
   List,
   LockKey,
-  MonitorPlay,
-  ShieldCheck,
-  Sparkle,
-  Waveform,
   WindowsLogo,
   X,
 } from "@phosphor-icons/react";
@@ -28,22 +23,20 @@ const ASSET_BASE = "./assets/";
 
 const proofItems = [
   {
-    icon: Sparkle,
-    title: "완전 무료",
-    description: "계정·광고·구독 없이",
-    tone: "mint",
+    label: "가격",
+    value: "무료 · MIT",
   },
   {
-    icon: ShieldCheck,
-    title: "로컬 저장",
-    description: "영상은 내 PC 안에만",
-    tone: "mint",
+    label: "저장",
+    value: "로컬 MP4",
   },
   {
-    icon: Key,
-    title: "F8 즉시 저장",
-    description: "최근 순간을 바로 클립으로",
-    tone: "blue",
+    label: "리플레이",
+    value: "15–180초",
+  },
+  {
+    label: "저장 키",
+    value: "F8",
   },
 ];
 
@@ -52,37 +45,37 @@ const reliabilityItems = [
     icon: Heartbeat,
     title: "녹화 전 상태 점검",
     description: "코덱, 오디오, 저장공간, 단축키 충돌을 시작 전에 확인합니다.",
+    status: "확인됨",
   },
   {
     icon: Gauge,
     title: "디스크 안전 가드",
     description: "남은 공간을 확인하고 임계치에 닿기 전에 녹화를 안전하게 마칩니다.",
+    status: "보호 중",
   },
   {
     icon: ClockCounterClockwise,
     title: "중단 파일 복구",
     description: "예기치 않은 종료 뒤에도 남은 .part 파일의 복구를 다음 실행에서 시도합니다.",
+    status: "복구 가능",
   },
 ];
 
 const steps = [
   {
     number: "01",
-    icon: MonitorPlay,
-    title: "게임 화면을 선택하세요",
-    description: "전체 화면이나 원하는 게임 창을 고르고 화질과 오디오를 확인합니다.",
+    title: "화면과 오디오를 한 번 확인",
+    description: "전체 화면이나 게임 창을 고르고 화질, 게임 소리, 마이크 상태를 확인합니다.",
   },
   {
     number: "02",
-    icon: Waveform,
-    title: "리플레이를 준비하세요",
-    description: "15~180초 중 원하는 길이를 정하면 최근 구간만 순환 보관합니다.",
+    title: "리플레이 준비 켜기",
+    description: "15~180초 중 길이를 정하면 최근 구간만 메모리에서 순환 보관합니다.",
   },
   {
     number: "03",
-    icon: HardDrive,
-    title: "F8로 순간을 남기세요",
-    description: "결정적인 순간에 F8. 기본 45초가 MP4 클립으로 로컬 보관함에 저장됩니다.",
+    title: "놓친 순간에 F8",
+    description: "기본 45초가 MP4 클립으로 변환되어 동영상/PulseClip에 저장됩니다.",
   },
 ];
 
@@ -141,7 +134,7 @@ function DownloadButton({ className = "", compact = false }) {
       aria-label="PulseClip Windows 설치 파일 다운로드 페이지 열기"
     >
       <WindowsLogo size={compact ? 18 : 22} weight="fill" aria-hidden="true" />
-      <span>{compact ? "무료 다운로드" : "Windows용 무료 다운로드"}</span>
+      <span>{compact ? "v0.1.0 다운로드" : "Windows용 무료 다운로드"}</span>
       {!compact && <ArrowRight size={18} weight="bold" aria-hidden="true" />}
     </a>
   );
@@ -151,10 +144,23 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = () => setMenuOpen(false);
 
+  useEffect(() => {
+    document.body.classList.toggle("menu-open", menuOpen);
+    const handleEscape = (event) => {
+      if (event.key === "Escape") closeMenu();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.classList.remove("menu-open");
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [menuOpen]);
+
   return (
     <header className="site-header">
       <div className="header-inner">
         <Brand compact />
+        {menuOpen && <button className="nav-backdrop" type="button" aria-label="메뉴 닫기" onClick={closeMenu} />}
         <nav id="mobile-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="주요 탐색">
           <a href="#features" onClick={closeMenu}>기능</a>
           <a href="#how-it-works" onClick={closeMenu}>사용 방법</a>
@@ -216,14 +222,14 @@ function Hero() {
       </div>
 
       <div className="hero-copy" data-reveal>
-        <p className="eyebrow"><GameController size={15} weight="fill" /> GAME CAPTURE STUDIO</p>
+        <p className="product-meta"><span>Windows 10/11</span><span>v0.1.0 공개 베타</span></p>
         <h1 id="hero-title">
           게임은 계속.
           <span>기록은 이미 완료.</span>
         </h1>
         <p className="hero-description">
-          녹화를 켜지 못한 결정적인 순간까지, F8 한 번으로 최근 플레이를 저장하세요.
-          <br />계정도 업로드도 필요 없는 무료 Windows 게임 녹화 앱입니다.
+          무료 Windows 게임 녹화 앱. 리플레이 준비를 켜두고 놓친 순간에 F8을 누르세요.
+          <br />기본 45초가 계정이나 업로드 없이 내 PC에 MP4로 저장됩니다.
         </p>
 
         <div className="hero-actions">
@@ -236,9 +242,10 @@ function Hero() {
         </div>
 
         <div className="hero-trust" aria-label="PulseClip 핵심 특징">
-          <span><CheckCircle size={16} weight="fill" /> 무계정</span>
-          <span><CheckCircle size={16} weight="fill" /> 무광고</span>
-          <span><CheckCircle size={16} weight="fill" /> MIT 오픈소스</span>
+          <span>무료</span>
+          <span>계정 없음</span>
+          <span>외부 업로드 없음</span>
+          <span>MIT 오픈소스</span>
         </div>
       </div>
 
@@ -257,14 +264,6 @@ function Hero() {
             fetchPriority="high"
           />
         </figure>
-        <div className="floating-proof floating-proof--local">
-          <ShieldCheck size={20} weight="fill" aria-hidden="true" />
-          <span><small>로컬 우선</small><strong>내 PC에만 저장</strong></span>
-        </div>
-        <div className="floating-proof floating-proof--ready">
-          <Waveform size={20} weight="bold" aria-hidden="true" />
-          <span><small>리플레이 버퍼</small><strong>준비 완료</strong></span>
-        </div>
       </div>
     </section>
   );
@@ -272,18 +271,15 @@ function Hero() {
 
 function ProofStrip() {
   return (
-    <section className="proof-strip" aria-label="PulseClip의 핵심 가치" data-reveal>
-      <div className="content-shell proof-strip__inner">
-        {proofItems.map(({ icon: Icon, title, description, tone }) => (
-          <article className="proof-item" key={title}>
-            <span className={`proof-icon proof-icon--${tone}`}><Icon size={25} weight="duotone" /></span>
-            <div>
-              <h2>{title}</h2>
-              <p>{description}</p>
-            </div>
-          </article>
+    <section className="proof-strip" aria-label="PulseClip 주요 사양" data-reveal>
+      <dl className="content-shell proof-strip__inner">
+        {proofItems.map(({ label, value }) => (
+          <div className="proof-item" key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
         ))}
-      </div>
+      </dl>
     </section>
   );
 }
@@ -293,20 +289,17 @@ function ReplaySection({ isSaved, onReplay }) {
     <section className="feature-section replay-section" id="features" aria-labelledby="replay-title">
       <div className="content-shell split-layout">
         <div className="section-copy" data-reveal>
-          <p className="eyebrow">INSTANT REPLAY</p>
-          <h2 id="replay-title"><span>45초</span> 전으로 돌아가는 가장 빠른 키.</h2>
+          <p className="section-label">즉시 리플레이</p>
+          <h2 id="replay-title">놓친 순간에 F8.<span>최근 45초가 남습니다.</span></h2>
           <p>
-            리플레이 준비를 켜두면 최근 구간만 가볍게 순환 보관합니다.
-            결정적인 순간이 지나간 뒤에도 F8 한 번이면 기본 45초가 바로 클립이 됩니다.
+            최근 구간만 메모리에서 순환 보관하므로 계속 녹화할 필요가 없습니다.
+            장면이 지나간 뒤 F8을 누르면 기본 45초가 MP4 클립이 됩니다.
           </p>
-          <ul className="check-list">
-            <li><CheckCircle size={18} weight="fill" /> 15~180초 리플레이 길이 설정</li>
-            <li><CheckCircle size={18} weight="fill" /> H.264 하드웨어 인코딩 우선</li>
-            <li><CheckCircle size={18} weight="fill" /> 일반 녹화와 단일 인코딩 파이프라인 공유</li>
-          </ul>
-          <button className="text-action" type="button" onClick={onReplay}>
-            <Key size={19} weight="duotone" /> F8 저장을 직접 눌러보세요 <ArrowRight size={17} weight="bold" />
-          </button>
+          <dl className="feature-specs">
+            <div><dt>버퍼 길이</dt><dd>15–180초</dd></div>
+            <div><dt>인코딩</dt><dd>H.264 우선</dd></div>
+            <div><dt>파이프라인</dt><dd>1회 인코딩</dd></div>
+          </dl>
         </div>
 
         <div className="visual-column" data-reveal>
@@ -319,12 +312,9 @@ function ReplaySection({ isSaved, onReplay }) {
           >
             <img src={`${ASSET_BASE}generated/f8-replay.png`} alt="" width="760" height="520" />
             <span className="replay-visual__hint">
-              <Key size={17} weight="fill" /> 클릭하거나 키보드의 F8을 눌러보세요
+              <Key size={17} weight="fill" /> 클릭 또는 F8로 동작 확인
             </span>
           </button>
-          <p className={`save-status${isSaved ? " is-visible" : ""}`} aria-live="polite">
-            <CheckCircle size={18} weight="fill" /> 최근 45초 클립을 저장했습니다
-          </p>
         </div>
       </div>
     </section>
@@ -335,27 +325,34 @@ function PrivacySection() {
   return (
     <section className="feature-section privacy-section" aria-labelledby="privacy-title">
       <div className="content-shell split-layout split-layout--reverse">
-        <div className="visual-column vault-visual" data-reveal>
-          <img
-            src={`${ASSET_BASE}generated/local-vault.png`}
-            alt="로컬 PC 저장을 상징하는 보안 저장소 일러스트"
-            width="760"
-            height="520"
-            loading="lazy"
-          />
+        <div className="local-proof" data-reveal aria-label="PulseClip 로컬 저장 예시">
+          <header>
+            <span><HardDrive size={18} weight="duotone" /> 저장 위치</span>
+            <strong>동영상\PulseClip</strong>
+          </header>
+          <div className="local-proof__file">
+            <span>최근 클립</span>
+            <strong>today_22-30-15.mp4</strong>
+            <small>00:00:45 · 1080p · 로컬 파일</small>
+          </div>
+          <dl>
+            <div><dt>계정</dt><dd>필요 없음</dd></div>
+            <div><dt>외부 전송</dt><dd>기본 없음</dd></div>
+            <div><dt>자동 정리</dt><dd>용량 기준</dd></div>
+          </dl>
+          <p><CloudSlash size={18} weight="duotone" /> 클립은 지정한 폴더 밖으로 전송되지 않습니다.</p>
         </div>
         <div className="section-copy" data-reveal>
-          <p className="eyebrow eyebrow--mint">SAFE RECORDING</p>
+          <p className="section-label section-label--mint">저장 위치</p>
           <h2 id="privacy-title">영상은 <span>내 PC 밖으로</span> 나가지 않습니다.</h2>
           <p>
             캡처 영상, 게임 소리, 마이크는 사용자가 지정한 로컬 폴더에만 저장됩니다.
             기본 설정에서는 외부 서버로 전송하지 않습니다.
           </p>
-          <ul className="check-list check-list--mint">
-            <li><LockKey size={18} weight="fill" /> 기본 저장 위치: 동영상/PulseClip</li>
-            <li><CloudSlash size={18} weight="fill" /> 클라우드 업로드와 계정 로그인 없음</li>
-            <li><HardDrive size={18} weight="fill" /> 저장 한도와 즐겨찾기 보호 자동 정리</li>
-          </ul>
+          <div className="privacy-facts">
+            <p><LockKey size={20} weight="duotone" /><span><strong>로그인 없이 사용</strong><small>계정 생성이나 구독 절차가 없습니다.</small></span></p>
+            <p><CloudSlash size={20} weight="duotone" /><span><strong>기본 외부 업로드 없음</strong><small>녹화 데이터는 지정한 로컬 폴더에만 기록됩니다.</small></span></p>
+          </div>
           <a className="text-link" href={`${GITHUB_URL}/blob/main/docs/SECURITY.md`} target="_blank" rel="noreferrer">
             보안과 개인정보 원칙 보기 <ArrowUpRight size={15} weight="bold" />
           </a>
@@ -368,21 +365,27 @@ function PrivacySection() {
 function ReliabilitySection() {
   return (
     <section className="reliability-section" aria-labelledby="reliability-title">
-      <div className="content-shell">
+      <div className="content-shell reliability-layout">
         <header className="section-heading" data-reveal>
-          <p className="eyebrow">RELIABLE CAPTURE</p>
-          <h2 id="reliability-title">녹화 버튼을 누르기 전에,<br />실패할 이유부터 점검합니다.</h2>
-          <p>좋은 녹화 앱은 화려한 기능보다 먼저 클립을 잃지 않아야 합니다.</p>
+          <p className="section-label">녹화 전 점검</p>
+          <h2 id="reliability-title">녹화를 시작하기 전에,<br />문제를 먼저 찾습니다.</h2>
+          <p>코덱, 오디오, 저장공간, 단축키 충돌을 확인하고 문제가 있으면 시작 전에 해결 방법을 안내합니다.</p>
         </header>
-        <div className="reliability-grid">
-          {reliabilityItems.map(({ icon: Icon, title, description }, index) => (
-            <article className="reliability-card" data-reveal key={title}>
-              <span className="card-index">0{index + 1}</span>
-              <Icon size={29} weight="duotone" aria-hidden="true" />
-              <h3>{title}</h3>
-              <p>{description}</p>
-            </article>
-          ))}
+        <div className="diagnostic-panel" data-reveal>
+          <header>
+            <div><span>시작 준비 상태</span><strong>녹화 가능</strong></div>
+            <span className="diagnostic-summary"><CheckCircle size={17} weight="fill" /> 3개 항목 정상</span>
+          </header>
+          <ul>
+            {reliabilityItems.map(({ icon: Icon, title, description, status }) => (
+              <li key={title}>
+                <Icon size={23} weight="duotone" aria-hidden="true" />
+                <span><strong>{title}</strong><small>{description}</small></span>
+                <em>{status}</em>
+              </li>
+            ))}
+          </ul>
+          <footer>문제가 발견되면 녹화를 시작하지 않고 해당 설정으로 바로 안내합니다.</footer>
         </div>
       </div>
     </section>
@@ -392,19 +395,18 @@ function ReliabilitySection() {
 function HowItWorks() {
   return (
     <section className="how-section" id="how-it-works" aria-labelledby="how-title">
-      <div className="content-shell">
-        <header className="section-heading section-heading--center" data-reveal>
-          <p className="eyebrow">HOW IT WORKS</p>
-          <h2 id="how-title">세 단계면, 다음 명장면을 놓치지 않습니다.</h2>
-          <p>복잡한 방송 설정 없이 게임 화면과 저장할 순간에만 집중하세요.</p>
+      <div className="content-shell how-layout">
+        <header className="section-heading" data-reveal>
+          <p className="section-label">사용 흐름</p>
+          <h2 id="how-title">설정은 한 번.<br />저장은 F8 한 번.</h2>
+          <p>복잡한 방송 설정 없이 화면과 오디오를 확인한 뒤 리플레이 준비만 켜두세요.</p>
         </header>
         <ol className="steps-list">
-          {steps.map(({ number, icon: Icon, title, description }) => (
+          {steps.map(({ number, title, description }) => (
             <li data-reveal key={number}>
               <span className="step-number">{number}</span>
-              <span className="step-icon"><Icon size={28} weight="duotone" /></span>
-              <h3>{title}</h3>
-              <p>{description}</p>
+              <div><h3>{title}</h3><p>{description}</p></div>
+              {number === "03" && <kbd>F8</kbd>}
             </li>
           ))}
         </ol>
@@ -418,9 +420,9 @@ function FaqSection() {
     <section className="faq-section" id="faq" aria-labelledby="faq-title">
       <div className="content-shell faq-layout">
         <header className="section-heading" data-reveal>
-          <p className="eyebrow">FAQ</p>
-          <h2 id="faq-title">다운로드 전에<br />궁금한 것들.</h2>
-          <p>더 자세한 구현과 보안 정책은 GitHub에서 모두 확인할 수 있습니다.</p>
+          <p className="section-label">설치 전 확인</p>
+          <h2 id="faq-title">설치 전에<br />확인하세요.</h2>
+          <p>지원 환경, 저장 방식, 성능과 보안 정책을 공개된 소스에서 확인할 수 있습니다.</p>
           <a className="text-link" href={GITHUB_URL} target="_blank" rel="noreferrer">
             GitHub 저장소 보기 <ArrowUpRight size={15} weight="bold" />
           </a>
@@ -449,9 +451,9 @@ function FinalCta() {
       </div>
       <div className="content-shell final-cta__content" data-reveal>
         <img className="cta-icon" src={`${ASSET_BASE}pulseclip-icon.png`} alt="" width="70" height="70" loading="lazy" />
-        <p className="eyebrow">PULSECLIP FOR WINDOWS</p>
-        <h2 id="final-cta-title">게임은 계속하세요.<br /><span>기록은 PulseClip이 준비할게요.</span></h2>
-        <p>무료 · 로컬 저장 · F8 즉시 리플레이</p>
+        <p className="release-line">Windows 10/11 · v0.1.0</p>
+        <h2 id="final-cta-title">다음 명장면에서는,<br /><span>F8만 누르세요.</span></h2>
+        <p>기본 45초를 내 PC에 MP4로 저장합니다.</p>
         <div className="hero-actions">
           <DownloadButton />
           <a className="button button--secondary" href={GITHUB_URL} target="_blank" rel="noreferrer">
@@ -547,7 +549,7 @@ export function App() {
       <Footer />
       <div className={`demo-toast${isSaved ? " is-visible" : ""}`} role="status" aria-live="polite">
         <CheckCircle size={23} weight="fill" />
-        <span><strong>최근 45초 저장 완료</strong><small>내 클립 보관함에 안전하게 저장됐어요.</small></span>
+        <span><strong>F8 동작 미리보기</strong><small>실제 앱에서는 최근 45초를 로컬 MP4로 저장합니다.</small></span>
       </div>
     </>
   );
