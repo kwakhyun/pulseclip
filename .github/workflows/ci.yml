@@ -25,6 +25,8 @@ jobs:
         run: npm ci
       - name: Verify desktop app
         run: npm run verify
+      - name: Verify Windows package
+        run: npx electron-builder --dir --x64
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 

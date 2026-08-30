@@ -110,3 +110,13 @@ test("uses natural Korean copy across the landing page and SEO metadata", async 
 
   assert.ok(!document.includes("게임은 계속. 기록은 이미 완료."));
 });
+
+test("ships a production CSP without development connection permissions", async () => {
+  const document = await readFile(
+    new URL("../dist/client/index.html", import.meta.url),
+    "utf8",
+  );
+  assert.ok(document.includes("connect-src 'none';"));
+  assert.ok(!document.includes("__PULSECLIP_LANDING_CONNECT_SRC__"));
+  assert.ok(!document.includes("ws://localhost"));
+});

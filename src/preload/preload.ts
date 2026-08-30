@@ -33,6 +33,7 @@ const IPC = {
   abortFile: 'files:abort',
   notify: 'app:notify',
   reportRuntimeStatus: 'app:runtime-status',
+  shutdownReady: 'app:shutdown-ready',
   windowAction: 'window:action',
 } as const;
 
@@ -41,6 +42,7 @@ const APP_EVENTS = [
   'shortcut:toggle-recording',
   'capture:stop-requested',
   'storage:safety-stop-requested',
+  'app:shutdown-requested',
   'app:show',
 ] as const;
 
@@ -72,6 +74,7 @@ const api: PulseClipApi = {
   notify: (title: string, body: string) => ipcRenderer.invoke(IPC.notify, title, body),
   reportRuntimeStatus: (status: RuntimeStatus) =>
     ipcRenderer.invoke(IPC.reportRuntimeStatus, status),
+  completeShutdown: () => ipcRenderer.invoke(IPC.shutdownReady),
   windowAction: (action: 'minimize' | 'maximize' | 'close') =>
     ipcRenderer.invoke(IPC.windowAction, action),
   onAppEvent: (name: AppEventName, listener: () => void) => {

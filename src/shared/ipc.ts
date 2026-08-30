@@ -18,6 +18,7 @@ export const IPC = {
   abortFile: 'files:abort',
   notify: 'app:notify',
   reportRuntimeStatus: 'app:runtime-status',
+  shutdownReady: 'app:shutdown-ready',
   windowAction: 'window:action',
 } as const;
 
@@ -26,5 +27,6 @@ export const APP_EVENTS = [
   'shortcut:toggle-recording',
   'capture:stop-requested',
   'storage:safety-stop-requested',
+  'app:shutdown-requested',
   'app:show',
 ] as const;

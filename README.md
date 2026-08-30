@@ -17,6 +17,7 @@
     · <a href="docs/PRODUCT.md">제품 기획</a>
     · <a href="docs/ARCHITECTURE.md">아키텍처</a>
     · <a href="docs/FEATURE_ROADMAP.md">로드맵</a>
+    · <a href="PRIVACY.md">개인정보 처리방침</a>
   </p>
 </div>
 
@@ -179,7 +180,7 @@ flowchart LR
 
 `main` 브랜치와 Pull Request에서 데스크톱 앱과 랜딩 페이지를 각각 검증합니다.
 
-- Windows 러너: 타입 검사 → 단위 테스트 → 프로덕션 빌드 → 운영 의존성 감사
+- Windows 러너: 타입 검사 → 단위 테스트 → 프로덕션 빌드 → x64 패키징 → 운영 의존성 감사
 - Ubuntu 러너: 랜딩 페이지 빌드 → 호스팅 번들 테스트 → 운영 의존성 감사
 - `main`의 랜딩 페이지 변경은 GitHub Pages에 자동 배포
 - Windows 설치 파일은 x64·Arm64 NSIS 패키지로 생성
@@ -243,6 +244,7 @@ artifacts      UI 감사 전후 화면과 브랜드 산출물
 | [제품 기획](docs/PRODUCT.md) | 문제 정의, 핵심 흐름, v1 범위, 품질 목표 |
 | [아키텍처](docs/ARCHITECTURE.md) | 프로세스 경계, 미디어 파이프라인, 저장·복구 구조 |
 | [보안 원칙](docs/SECURITY.md) | 로컬 저장, IPC와 경로 검증, 공개 전 보안 게이트 |
+| [개인정보 처리방침](PRIVACY.md) | 앱의 로컬 데이터, 보관·삭제, GitHub 배포 경계 |
 | [기능 로드맵](docs/FEATURE_ROADMAP.md) | 사용자 가치와 구현 위험을 기준으로 한 P0~P2 우선순위 |
 | [릴리스 가이드](docs/RELEASE.md) | 패키징, 코드 서명, 배포 전 검증 항목 |
 | [UI/UX 감사](artifacts/ui-audit/README.md) | 주요 화면의 문제점, 우선순위, 개선 전후 근거 |

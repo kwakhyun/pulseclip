@@ -135,8 +135,8 @@ export class WriteSessionManager {
     });
   }
 
-  async shutdown(): Promise<void> {
-    await Promise.all([...this.sessions.keys()].map((id) => this.abort(id)));
+  async shutdown(reason?: string): Promise<void> {
+    await Promise.all([...this.sessions.keys()].map((id) => this.abort(id, reason)));
   }
 
   private requireSession(sessionId: string): WriteSession {

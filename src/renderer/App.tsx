@@ -61,6 +61,7 @@ interface ActionRegistry {
   toggleRecording: () => void;
   stopCapture: () => void;
   diskSafetyStop: () => void;
+  shutdown: () => void;
   refresh: () => void;
 }
 
@@ -73,11 +74,13 @@ export default function App() {
     toggleRecording: () => undefined,
     stopCapture: () => undefined,
     diskSafetyStop: () => undefined,
+    shutdown: () => undefined,
     refresh: () => undefined,
   });
   const toastId = useRef(0);
   const reportRef = useRef({ phase: '', timestamp: 0 });
   const recoveryStateRef = useRef<CaptureTelemetry['recoveryState']>('none');
+  const shutdownStartedRef = useRef(false);
 
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -195,6 +198,9 @@ export default function App() {
       ),
       window.pulseClip.onAppEvent('storage:safety-stop-requested', () =>
         actionsRef.current.diskSafetyStop(),
+      ),
+      window.pulseClip.onAppEvent('app:shutdown-requested', () =>
+        actionsRef.current.shutdown(),
       ),
       window.pulseClip.onAppEvent('app:show', () => actionsRef.current.refresh()),
     ];
@@ -376,6 +382,15 @@ export default function App() {
     );
   };
 
+  const shutdown = () => {
+    if (shutdownStartedRef.current) return;
+    shutdownStartedRef.current = true;
+    void engine.stop()
+      .catch(() => undefined)
+      .then(() => window.pulseClip.completeShutdown())
+      .catch(() => undefined);
+  };
+
   const handleDiskSafetyStop = async () => {
     if (!engine.isRecording()) return;
     setBusy(true);
@@ -401,6 +416,7 @@ export default function App() {
     toggleRecording: () => void toggleRecording(),
     stopCapture,
     diskSafetyStop: () => void handleDiskSafetyStop(),
+    shutdown,
     refresh: () => {
       void refreshLibrary();
       void refreshSources();

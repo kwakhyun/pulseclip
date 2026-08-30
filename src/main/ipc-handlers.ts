@@ -43,6 +43,7 @@ interface RegisterIpcOptions {
   getShortcutRegistration: () => ShortcutRegistration;
   applyLoginItemSettings: () => void;
   updateTrayStatus: (status: RuntimeStatus) => void;
+  onShutdownReady: () => void;
 }
 
 export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
@@ -59,6 +60,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
     getShortcutRegistration,
     applyLoginItemSettings,
     updateTrayStatus,
+    onShutdownReady,
   } = options;
 
   let lastDiagnosticReport: DiagnosticReport | null = null;
@@ -241,6 +243,10 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
 
   handle(IPC.reportRuntimeStatus, async (_event, status: unknown) => {
     updateTrayStatus(validateRuntimeStatus(status));
+  });
+
+  handle(IPC.shutdownReady, async () => {
+    onShutdownReady();
   });
 
   handle(IPC.windowAction, async (_event, action: unknown) => {

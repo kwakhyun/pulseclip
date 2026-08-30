@@ -452,6 +452,7 @@ function Footer() {
         <p>계정이나 클라우드 없이 게임의 결정적인 순간을 내 PC에 저장하는 무료 녹화 앱입니다.</p>
         <nav aria-label="보조 탐색">
           <a href={`${GITHUB_URL}/blob/main/LICENSE`} target="_blank" rel="noreferrer">MIT License</a>
+          <a href={`${GITHUB_URL}/blob/main/PRIVACY.md`} target="_blank" rel="noreferrer">개인정보 처리방침</a>
           <a href={`${GITHUB_URL}/blob/main/docs/SECURITY.md`} target="_blank" rel="noreferrer">보안</a>
           <a href={`${GITHUB_URL}/blob/main/THIRD_PARTY_NOTICES.md`} target="_blank" rel="noreferrer">오픈소스 고지</a>
         </nav>

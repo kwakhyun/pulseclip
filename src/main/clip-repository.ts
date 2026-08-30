@@ -1,5 +1,6 @@
 import {
   mkdir,
+  open,
   readFile,
   readdir,
   rename,
@@ -24,6 +25,7 @@ interface StoredClip extends Omit<Clip, 'mediaUrl'> {
 
 const VIDEO_PREFIX = 'PulseClip_';
 const SIDECAR_SUFFIX = '.pulseclip.json';
+const CLIP_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class ClipRepository {
   constructor(
@@ -177,11 +179,14 @@ export class ClipRepository {
       const partPath = path.join(folder, entry.name);
       try {
         const details = await stat(partPath);
-        if (details.size < 4096) {
-          await rm(partPath, { force: true });
+        if (!(await isRecoverableFragmentedMp4(partPath, details.size))) {
+          this.logger.warn('Interrupted file is not a recoverable fragmented MP4; preserving part file', {
+            partPath,
+            bytes: details.size,
+          });
           continue;
         }
-        const finalPath = uniqueRecoveredPath(folder, entry.name.slice(0, -5));
+        const finalPath = await uniqueRecoveredPath(folder, entry.name.slice(0, -5));
         await rename(partPath, finalPath);
         await this.registerCompletedFile(
           finalPath,
@@ -213,6 +218,9 @@ export class ClipRepository {
       const raw = JSON.parse(await readFile(sidecarPath, 'utf8')) as unknown;
       const stored = await sanitizeStoredClip(raw, filePath);
       if (!stored) throw new Error('Invalid metadata');
+      if (!isValidClipId((raw as Partial<StoredClip>).id)) {
+        await this.writeMetadata(filePath, stored);
+      }
       return withMediaUrl(stored);
     } catch {
       const details = await stat(filePath);
@@ -274,7 +282,7 @@ async function sanitizeStoredClip(
     : details.birthtime.toISOString();
   return {
     schemaVersion: 1,
-    id: typeof value.id === 'string' && value.id.length <= 100 ? value.id : randomUUID(),
+    id: isValidClipId(value.id) ? value.id : randomUUID(),
     fileName: path.basename(filePath),
     title: cleanText(value.title, createTitle(kind, createdAt)),
     kind,
@@ -289,6 +297,10 @@ async function sanitizeStoredClip(
     favorite: Boolean(value.favorite),
     recovered: Boolean(value.recovered || kind === 'recovered'),
   };
+}
+
+function isValidClipId(value: unknown): value is string {
+  return typeof value === 'string' && CLIP_ID_PATTERN.test(value);
 }
 
 function cleanText(value: unknown, fallback: string): string {
@@ -322,10 +334,71 @@ function isSameLocalDay(value: string, today: Date): boolean {
   );
 }
 
-function uniqueRecoveredPath(folder: string, originalFileName: string): string {
+async function uniqueRecoveredPath(
+  folder: string,
+  originalFileName: string,
+): Promise<string> {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const baseName = originalFileName.replace(/\.mp4$/i, '');
-  return path.join(folder, `${baseName}_Recovered_${stamp}.mp4`);
+  for (let index = 0; index < 100; index += 1) {
+    const suffix = index === 0 ? '' : `_${index + 1}`;
+    const candidate = path.join(folder, `${baseName}_Recovered_${stamp}${suffix}.mp4`);
+    try {
+      await stat(candidate);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return candidate;
+      throw error;
+    }
+  }
+  throw new Error('복구 파일의 고유한 이름을 만들 수 없습니다.');
+}
+
+export async function isRecoverableFragmentedMp4(
+  filePath: string,
+  fileSize: number,
+): Promise<boolean> {
+  if (!Number.isSafeInteger(fileSize) || fileSize < 8) return false;
+  const handle = await open(filePath, 'r');
+  let position = 0;
+  let foundFtyp = false;
+  let foundMoov = false;
+  let foundMoof = false;
+
+  try {
+    while (position + 8 <= fileSize) {
+      const header = Buffer.alloc(16);
+      const { bytesRead } = await handle.read(header, 0, 16, position);
+      if (bytesRead < 8) break;
+      const size32 = header.readUInt32BE(0);
+      const type = header.toString('ascii', 4, 8);
+      let headerBytes = 8;
+      let boxBytes: number;
+
+      if (size32 === 1) {
+        if (bytesRead < 16) break;
+        const largeSize = header.readBigUInt64BE(8);
+        if (largeSize > BigInt(Number.MAX_SAFE_INTEGER)) return false;
+        boxBytes = Number(largeSize);
+        headerBytes = 16;
+      } else if (size32 === 0) {
+        boxBytes = fileSize - position;
+      } else {
+        boxBytes = size32;
+      }
+
+      if (boxBytes < headerBytes || position + boxBytes > fileSize) break;
+      if (type === 'ftyp') foundFtyp = true;
+      if (type === 'moov') foundMoov = true;
+      if (type === 'moof') foundMoof = true;
+      if (type === 'mdat' && foundFtyp && foundMoov && foundMoof && boxBytes > headerBytes) {
+        return true;
+      }
+      position += boxBytes;
+    }
+    return false;
+  } finally {
+    await handle.close();
+  }
 }
 
 export function buildClipFileName(kind: 'recording' | 'replay'): string {

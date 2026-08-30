@@ -160,6 +160,7 @@ export interface AppEventMap {
   'shortcut:toggle-recording': undefined;
   'capture:stop-requested': undefined;
   'storage:safety-stop-requested': undefined;
+  'app:shutdown-requested': undefined;
   'app:show': undefined;
 }
 
@@ -188,6 +189,7 @@ export interface PulseClipApi {
   abortFile(sessionId: string, reason?: string): Promise<void>;
   notify(title: string, body: string): Promise<void>;
   reportRuntimeStatus(status: RuntimeStatus): Promise<void>;
+  completeShutdown(): Promise<void>;
   windowAction(action: 'minimize' | 'maximize' | 'close'): Promise<void>;
   onAppEvent<T extends AppEventName>(name: T, listener: () => void): () => void;
 }

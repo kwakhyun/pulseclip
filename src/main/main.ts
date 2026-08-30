@@ -4,6 +4,7 @@ import {
   app,
   BrowserWindow,
   desktopCapturer,
+  dialog,
   globalShortcut,
   Menu,
   nativeImage,
@@ -13,6 +14,7 @@ import {
   session,
   Tray,
   type IpcMainInvokeEvent,
+  type RenderProcessGoneDetails,
 } from 'electron';
 import { APP_EVENTS } from '../shared/ipc';
 import type {
@@ -24,7 +26,10 @@ import type {
 import { ClipRepository } from './clip-repository';
 import { registerIpcHandlers } from './ipc-handlers';
 import { Logger } from './logger';
+import { RendererCrashPolicy } from './renderer-crash-policy';
 import { SettingsStore } from './settings-store';
+import { RendererShutdownCoordinator } from './shutdown-coordinator';
+import { decideWindowCloseAction } from './window-close-policy';
 import { WriteSessionManager } from './write-session-manager';
 import { DiskSafetyService } from './disk-safety';
 
@@ -49,6 +54,9 @@ interface PendingCaptureGrant {
 
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const SHUTDOWN_TIMEOUT_MS = 8_000;
+const RENDERER_CRASH_WINDOW_MS = 60_000;
+const MAX_RENDERER_RELOADS = 3;
 
 if (!hasSingleInstanceLock) {
   app.quit();
@@ -57,6 +65,9 @@ if (!hasSingleInstanceLock) {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+let shutdownComplete = false;
+let shutdownPromise: Promise<void> | null = null;
+let rendererCrashRecoveryPromise: Promise<void> | null = null;
 let pendingCaptureGrant: PendingCaptureGrant | null = null;
 let settingsStore: SettingsStore;
 let clipRepository: ClipRepository;
@@ -73,6 +84,11 @@ let runtimeStatus: RuntimeStatus = {
   bufferSeconds: 0,
   recordingSeconds: 0,
 };
+const rendererShutdown = new RendererShutdownCoordinator();
+const rendererCrashPolicy = new RendererCrashPolicy(
+  MAX_RENDERER_RELOADS,
+  RENDERER_CRASH_WINDOW_MS,
+);
 
 app.on('second-instance', () => showMainWindow());
 
@@ -83,13 +99,15 @@ app.whenReady().then(initialize).catch((error) => {
 
 app.on('activate', () => showMainWindow());
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   isQuitting = true;
+  if (shutdownComplete) return;
+  event.preventDefault();
+  shutdownPromise ??= performGracefulShutdown();
 });
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
-  void writeSessionManager?.shutdown();
 });
 
 async function initialize(): Promise<void> {
@@ -133,6 +151,9 @@ async function initialize(): Promise<void> {
     getShortcutRegistration: () => ({ ...shortcutRegistration }),
     applyLoginItemSettings,
     updateTrayStatus,
+    onShutdownReady: () => {
+      if (isQuitting) rendererShutdown.markReady();
+    },
   });
 
   mainWindow.once('ready-to-show', () => {
@@ -175,10 +196,21 @@ function createMainWindow(): BrowserWindow {
     const current = window.webContents.getURL();
     if (url !== current) event.preventDefault();
   });
+  window.webContents.on('render-process-gone', (_event, details) => {
+    handleRendererCrash(window, details);
+  });
   window.on('close', (event) => {
-    if (!isQuitting && settingsStore.get().minimizeToTray) {
+    const action = decideWindowCloseAction(
+      isQuitting,
+      settingsStore.get().minimizeToTray,
+    );
+    if (action === 'hide') {
       event.preventDefault();
       window.hide();
+    } else if (action === 'quit') {
+      event.preventDefault();
+      isQuitting = true;
+      app.quit();
     }
   });
 
@@ -398,9 +430,108 @@ function setupPowerEvents(): void {
   powerMonitor.on('lock-screen', requestStop);
 }
 
+async function performGracefulShutdown(): Promise<void> {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      sendAppEvent('app:shutdown-requested');
+      const result = await rendererShutdown.wait(SHUTDOWN_TIMEOUT_MS);
+      if (result === 'timeout') {
+        logger?.warn('Renderer shutdown timed out; preserving unfinished recordings');
+      }
+    }
+  } catch (error) {
+    logger?.error('Renderer shutdown failed', error);
+  }
+
+  try {
+    await writeSessionManager?.shutdown('app-shutdown');
+  } catch (error) {
+    logger?.error('Failed to close media write sessions during shutdown', error);
+  }
+
+  await logger?.flush().catch(() => undefined);
+  shutdownComplete = true;
+  app.quit();
+}
+
+function handleRendererCrash(
+  window: BrowserWindow,
+  details: RenderProcessGoneDetails,
+): void {
+  if (isQuitting) {
+    rendererShutdown.markReady();
+    return;
+  }
+  if (rendererCrashRecoveryPromise) return;
+
+  const recovery = performRendererCrashRecovery(window, details).catch((error) => {
+    logger?.error('Renderer crash recovery failed', error);
+    requestFatalQuit(
+      '화면을 복구하지 못했습니다. 진행 중이던 녹화의 보존을 시도한 뒤 PulseClip을 종료합니다.',
+    );
+  });
+  rendererCrashRecoveryPromise = recovery;
+  void recovery.finally(() => {
+    if (rendererCrashRecoveryPromise === recovery) {
+      rendererCrashRecoveryPromise = null;
+    }
+  });
+}
+
+async function performRendererCrashRecovery(
+  window: BrowserWindow,
+  details: RenderProcessGoneDetails,
+): Promise<void> {
+  const action = rendererCrashPolicy.register();
+  pendingCaptureGrant = null;
+  logger.error('Renderer process terminated unexpectedly', {
+    reason: details.reason,
+    exitCode: details.exitCode,
+    action,
+  });
+
+  await writeSessionManager.shutdown('renderer-crash');
+  const recovered = await clipRepository.recoverPartFiles();
+  if (recovered > 0) {
+    logger.info('Recovered recordings after renderer crash', { count: recovered });
+  }
+
+  if (isQuitting || window.isDestroyed()) return;
+  if (action === 'stop') {
+    requestFatalQuit(
+      '화면 프로세스가 짧은 시간에 반복해서 종료되었습니다. 녹화 파일을 보존한 뒤 PulseClip을 안전하게 종료합니다.',
+    );
+    return;
+  }
+
+  updateTrayStatus({
+    phase: 'recovering',
+    sourceName: '',
+    bufferSeconds: 0,
+    recordingSeconds: 0,
+  });
+  window.webContents.reload();
+  window.show();
+  logger.info('Reloading renderer after unexpected termination', {
+    reason: details.reason,
+  });
+}
+
+function requestFatalQuit(message: string): void {
+  if (isQuitting) return;
+  dialog.showErrorBox('PulseClip을 복구할 수 없습니다', message);
+  isQuitting = true;
+  rendererShutdown.markReady();
+  app.quit();
+}
+
 function sendAppEvent(name: (typeof APP_EVENTS)[number]): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.webContents.send(name);
+  try {
+    mainWindow.webContents.send(name);
+  } catch (error) {
+    logger?.warn('Could not deliver renderer event', { name, error });
+  }
 }
 
 function showMainWindow(): void {
