@@ -1,9 +1,11 @@
 import path from 'node:path';
 import { getCurrentFuseWire, FuseV1Options } from '@electron/fuses';
 
-const executablePath = path.resolve(
-  process.argv[2] ?? path.join('release', 'win-unpacked', 'PulseClip.exe'),
-);
+const executablePaths = (
+  process.argv.length > 2
+    ? process.argv.slice(2)
+    : [path.join('release', 'win-unpacked', 'PulseClip.exe')]
+).map((executablePath) => path.resolve(executablePath));
 
 const expectedFuses = new Map([
   [FuseV1Options.RunAsNode, false],
@@ -16,23 +18,30 @@ const expectedFuses = new Map([
   [FuseV1Options.GrantFileProtocolExtraPrivileges, false],
 ]);
 
-const fuseWire = await getCurrentFuseWire(executablePath);
 const enabledState = '1'.charCodeAt(0);
 const disabledState = '0'.charCodeAt(0);
-const mismatches = [];
 
-for (const [option, expectedEnabled] of expectedFuses) {
-  const expectedState = expectedEnabled ? enabledState : disabledState;
-  const actualState = fuseWire[option];
-  if (actualState !== expectedState) {
-    mismatches.push(
-      `${FuseV1Options[option]}: expected ${expectedEnabled ? 'enabled' : 'disabled'}, got ${actualState}`,
+for (const executablePath of executablePaths) {
+  const fuseWire = await getCurrentFuseWire(executablePath);
+  const mismatches = [];
+
+  for (const [option, expectedEnabled] of expectedFuses) {
+    const expectedState = expectedEnabled ? enabledState : disabledState;
+    const actualState = fuseWire[option];
+    if (actualState !== expectedState) {
+      mismatches.push(
+        `${FuseV1Options[option]}: expected ${expectedEnabled ? 'enabled' : 'disabled'}, got ${actualState}`,
+      );
+    }
+  }
+
+  if (mismatches.length > 0) {
+    throw new Error(
+      `Electron fuse verification failed for ${executablePath}:\n${mismatches.join('\n')}`,
     );
   }
-}
 
-if (mismatches.length > 0) {
-  throw new Error(`Electron fuse verification failed:\n${mismatches.join('\n')}`);
+  console.log(
+    `Verified ${expectedFuses.size} Electron security fuses in ${executablePath}`,
+  );
 }
-
-console.log(`Verified ${expectedFuses.size} Electron security fuses in ${executablePath}`);
