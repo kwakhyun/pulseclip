@@ -75,7 +75,7 @@ test("uses a direct installer download and keeps the product preview tilt static
   ]);
 
   const installerPath =
-    "releases/download/v0.1.2/PulseClip-0.1.2-Setup.exe";
+    "releases/download/v0.1.3/PulseClip-0.1.3-Setup.exe";
 
   assert.ok(
     appSource.includes(

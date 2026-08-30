@@ -19,4 +19,4 @@ Include the affected version, Windows version and architecture, reproduction ste
 
 PulseClip stores recordings on the user's PC and does not require an account. The default application flow does not upload recordings to a PulseClip server. Protected-content restrictions are not bypassed.
 
-Release `v0.1.2` is not Authenticode-signed. Windows SmartScreen may therefore show an unrecognized-app warning even when the downloaded checksum matches the published `SHA256SUMS.txt`. A trusted code-signing certificate remains a release-hardening priority.
+Release `v0.1.3` is not Authenticode-signed. Windows SmartScreen may therefore show an unrecognized-app warning even when the downloaded checksum matches the published `SHA256SUMS.txt`. A trusted code-signing certificate remains a release-hardening priority.
