@@ -45,6 +45,9 @@ Documents/PulseClip/
 ## 보안 경계
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`
+- 프로덕션 렌더러는 `file://`가 아니라 허용된 빌드 산출물만 제공하는 `pulseclip://app`에서 로드
+- 경로 디코딩 실패, NUL 바이트, 상위 경로 이동과 앱 자산 루트 이탈을 프로토콜 경계에서 거부
+- ASAR 무결성 검증과 `OnlyLoadAppFromAsar`를 활성화하고 Run-as-Node, `NODE_OPTIONS`, CLI inspector 퓨즈를 비활성화
 - preload에서 기능별 최소 API만 노출
 - 모든 IPC 발신 프레임과 인자 검증
 - 외부 탐색과 임의 URL 로드 차단

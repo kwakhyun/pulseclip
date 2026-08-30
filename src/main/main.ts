@@ -23,7 +23,9 @@ import type {
   RuntimeStatus,
   ShortcutRegistration,
 } from '../shared/types';
+import { resolveAppAssetPath } from './app-assets';
 import { ClipRepository } from './clip-repository';
+import { DiskSafetyService } from './disk-safety';
 import { registerIpcHandlers } from './ipc-handlers';
 import { Logger } from './logger';
 import { RendererCrashPolicy } from './renderer-crash-policy';
@@ -31,7 +33,6 @@ import { SettingsStore } from './settings-store';
 import { RendererShutdownCoordinator } from './shutdown-coordinator';
 import { decideWindowCloseAction } from './window-close-policy';
 import { WriteSessionManager } from './write-session-manager';
-import { DiskSafetyService } from './disk-safety';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -131,7 +132,7 @@ async function initialize(): Promise<void> {
     () => sendAppEvent('storage:safety-stop-requested'),
   );
 
-  setupMediaProtocol();
+  setupProtocolHandlers();
   setupCapturePermissions();
   mainWindow = createMainWindow();
   createTray();
@@ -199,6 +200,20 @@ function createMainWindow(): BrowserWindow {
   window.webContents.on('render-process-gone', (_event, details) => {
     handleRendererCrash(window, details);
   });
+  window.webContents.on('did-finish-load', () => {
+    logger.info('Renderer loaded', { url: window.webContents.getURL() });
+  });
+  window.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) return;
+      logger.error('Renderer failed to load', {
+        errorCode,
+        errorDescription,
+        url: validatedURL,
+      });
+    },
+  );
   window.on('close', (event) => {
     const action = decideWindowCloseAction(
       isQuitting,
@@ -217,7 +232,7 @@ function createMainWindow(): BrowserWindow {
   if (isDevelopment && process.env.VITE_DEV_SERVER_URL) {
     void window.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    void window.loadFile(path.join(__dirname, '../../dist/index.html'));
+    void window.loadURL('pulseclip://app/index.html');
   }
   return window;
 }
@@ -335,10 +350,28 @@ function applyLoginItemSettings(): void {
   });
 }
 
-function setupMediaProtocol(): void {
+function setupProtocolHandlers(): void {
   void protocol.handle('pulseclip', async (request) => {
     try {
       const url = new URL(request.url);
+      if (url.hostname === 'app') {
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+          return new Response('Method not allowed', {
+            status: 405,
+            headers: { Allow: 'GET, HEAD' },
+          });
+        }
+        const assetPath = resolveAppAssetPath(
+          path.join(__dirname, '../../dist'),
+          url.pathname,
+        );
+        if (!assetPath) return new Response('Bad request', { status: 400 });
+        return net.fetch(pathToFileURL(assetPath).toString(), {
+          method: request.method,
+          headers: request.headers,
+        });
+      }
+
       if (url.hostname !== 'media') return new Response('Not found', { status: 404 });
       const id = decodeURIComponent(url.pathname.slice(1));
       if (!/^[0-9a-f-]{36}$/i.test(id)) {
@@ -350,7 +383,7 @@ function setupMediaProtocol(): void {
         headers: request.headers,
       });
     } catch (error) {
-      logger.warn('Media protocol request failed', error);
+      logger.warn('Protocol request failed', error);
       return new Response('Not found', { status: 404 });
     }
   });

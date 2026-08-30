@@ -8,11 +8,13 @@ npm run verify
 npm run package
 ```
 
+`npm run package`와 `npm run dist`는 패키징 직후 실행 파일의 Electron 보안 퓨즈 8개를 검증한다. 이 검사가 실패한 산출물은 배포하지 않는다.
+
 ## 설치 파일
 
 `npm run dist`는 Windows x64/arm64 NSIS 설치 파일을 `release/`에 생성한다. 공개 배포본은 조직의 EV/OV 코드 서명 인증서로 서명해야 한다.
 
-현재 `v0.1.1` 공개 베타는 코드 서명 인증서가 준비되기 전에 배포되므로 Release 본문과 `SHA256SUMS.txt`에서 미서명 상태와 SmartScreen 경고 가능성을 명확히 안내한다. 향후 정식 릴리스는 신뢰된 인증서로 실행 파일과 설치 파일을 서명한 뒤 배포한다.
+현재 공개 베타는 코드 서명 인증서가 준비되기 전에 배포되므로 Release 본문과 `SHA256SUMS.txt`에서 미서명 상태와 SmartScreen 경고 가능성을 명확히 안내한다. 향후 정식 릴리스는 신뢰된 인증서로 실행 파일과 설치 파일을 서명한 뒤 배포한다.
 
 ## 배포 전 체크
 

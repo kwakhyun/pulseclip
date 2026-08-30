@@ -27,6 +27,8 @@ jobs:
         run: npm run verify
       - name: Verify Windows package
         run: npx electron-builder --dir --x64
+      - name: Verify Electron security fuses
+        run: npm run verify:fuses
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 

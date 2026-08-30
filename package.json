@@ -1,6 +1,6 @@
 {
   "name": "pulseclip",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Local-first Windows game recorder with instant replay",
   "author": "PulseClip Contributors",
@@ -17,9 +17,10 @@
     "build": "npm run typecheck && npm run build:main && npm run build:renderer",
     "test": "vitest run",
     "test:watch": "vitest",
-    "package": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder --win nsis --x64 --arm64 && npm run release:artifacts",
+    "package": "npm run build && electron-builder --dir && npm run verify:fuses",
+    "dist": "npm run build && electron-builder --win nsis --x64 --arm64 && npm run verify:fuses && npm run release:artifacts",
     "release:artifacts": "node scripts/prepare-release-artifacts.mjs",
+    "verify:fuses": "node scripts/verify-electron-fuses.mjs release/win-unpacked/PulseClip.exe",
     "verify": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@electron/fuses": "1.8.0",
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
@@ -86,6 +88,16 @@
       "createStartMenuShortcut": true,
       "shortcutName": "PulseClip",
       "deleteAppDataOnUninstall": false
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "loadBrowserProcessSpecificV8Snapshot": false,
+      "grantFileProtocolExtraPrivileges": false
     }
   }
 }
