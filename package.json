@@ -1,6 +1,6 @@
 {
   "name": "pulseclip",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Local-first Windows game recorder with instant replay",
   "author": "PulseClip Contributors",
@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "package": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder --win nsis --x64 --arm64",
+    "dist": "npm run build && electron-builder --win nsis --x64 --arm64 && npm run release:artifacts",
+    "release:artifacts": "node scripts/prepare-release-artifacts.mjs",
     "verify": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
@@ -68,7 +69,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "artifactName": "PulseClip-${version}-${arch}-Setup.${ext}"

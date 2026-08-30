@@ -82,7 +82,7 @@ export function Sidebar({ page, onNavigate, storage, version }: SidebarProps) {
         </small>
       </div>
 
-      <span className="app-version">PulseClip v{version || '0.1.0'}</span>
+      <span className="app-version">PulseClip v{version || '0.1.1'}</span>
     </aside>
   );
 }
