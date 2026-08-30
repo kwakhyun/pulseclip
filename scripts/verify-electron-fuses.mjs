@@ -24,6 +24,13 @@ const disabledState = '0'.charCodeAt(0);
 for (const executablePath of executablePaths) {
   const fuseWire = await getCurrentFuseWire(executablePath);
   const mismatches = [];
+  const actualFuseCount = Object.keys(fuseWire).filter((key) => /^\d+$/.test(key)).length;
+
+  if (actualFuseCount !== expectedFuses.size) {
+    mismatches.push(
+      `fuse count: expected ${expectedFuses.size}, got ${actualFuseCount}; review new or removed Electron fuses`,
+    );
+  }
 
   for (const [option, expectedEnabled] of expectedFuses) {
     const expectedState = expectedEnabled ? enabledState : disabledState;
