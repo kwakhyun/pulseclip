@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, TriangleAlert } from 'lucide-react';
 import type {
   AppSettings,
   AudioInputDevice,
@@ -83,6 +83,7 @@ export default function App() {
   const shutdownStartedRef = useRef(false);
 
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [sources, setSources] = useState<CaptureSource[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -184,7 +185,11 @@ export default function App() {
       }
     });
     const unsubscribeClip = engine.onClipCreated(() => {
-      void refreshLibrary();
+      void refreshLibrary().catch((error) => {
+        if (!disposed) {
+          showToast('error', '클립 목록을 새로고치지 못했습니다', messageOf(error));
+        }
+      });
     });
     const unsubscribeEvents = [
       window.pulseClip.onAppEvent('shortcut:save-replay', () =>
@@ -207,6 +212,7 @@ export default function App() {
 
     void (async () => {
       try {
+        setBootstrapError(null);
         const [data, initialSources] = await Promise.all([
           window.pulseClip.bootstrap(),
           window.pulseClip.listCaptureSources(),
@@ -236,9 +242,7 @@ export default function App() {
           }
         }
       } catch (error) {
-        if (!disposed) {
-          showToast('error', 'PulseClip을 시작하지 못했습니다', messageOf(error));
-        }
+        if (!disposed) setBootstrapError(messageOf(error));
       }
     })();
 
@@ -329,6 +333,8 @@ export default function App() {
       try {
         await engine.stop();
         showToast('info', '리플레이 준비를 껐습니다');
+      } catch (error) {
+        showToast('error', '리플레이 준비를 끄지 못했습니다', messageOf(error));
       } finally {
         setBusy(false);
       }
@@ -418,7 +424,9 @@ export default function App() {
     diskSafetyStop: () => void handleDiskSafetyStop(),
     shutdown,
     refresh: () => {
-      void refreshLibrary();
+      void refreshLibrary().catch((error) =>
+        showToast('error', '클립 목록을 새로고치지 못했습니다', messageOf(error)),
+      );
       void refreshSources();
     },
   };
@@ -526,6 +534,22 @@ export default function App() {
     }
   };
 
+  const revealClip = async (clip: Clip) => {
+    try {
+      await window.pulseClip.revealClip(clip.id);
+    } catch (error) {
+      showToast('error', '파일 위치를 열지 못했습니다', messageOf(error));
+    }
+  };
+
+  const openClipExternally = async (clip: Clip) => {
+    try {
+      await window.pulseClip.openClip(clip.id);
+    } catch (error) {
+      showToast('error', '기본 플레이어에서 열지 못했습니다', messageOf(error));
+    }
+  };
+
   const navigateToPage = (next: NavigationPage) => {
     if (next === page) return;
     if (page === 'settings' && settingsDirty) {
@@ -549,6 +573,32 @@ export default function App() {
   };
 
   if (!bootstrap || !settings) {
+    if (bootstrapError) {
+      return (
+        <div className="splash-screen splash-error" role="alert">
+          <BrandMark className="splash-mark" />
+          <TriangleAlert size={24} />
+          <strong>PulseClip을 시작하지 못했습니다</strong>
+          <p>{bootstrapError}</p>
+          <div className="splash-error-actions">
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => window.location.reload()}
+            >
+              다시 시도
+            </button>
+            <button
+              type="button"
+              className="button ghost"
+              onClick={() => void window.pulseClip.windowAction('quit')}
+            >
+              종료
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="splash-screen">
         <BrandMark className="splash-mark" />
@@ -591,8 +641,8 @@ export default function App() {
             clips={clips}
             onOpen={setSelectedClip}
             onFavorite={(clip, favorite) => void setFavorite(clip, favorite)}
-            onReveal={(clip) => void window.pulseClip.revealClip(clip.id)}
-            onOpenExternal={(clip) => void window.pulseClip.openClip(clip.id)}
+            onReveal={(clip) => void revealClip(clip)}
+            onOpenExternal={(clip) => void openClipExternally(clip)}
             onDelete={setDeleteCandidate}
           />
         )}
@@ -644,8 +694,8 @@ export default function App() {
         clip={selectedClip}
         onClose={() => setSelectedClip(null)}
         onFavorite={(clip, favorite) => void setFavorite(clip, favorite)}
-        onReveal={(clip) => void window.pulseClip.revealClip(clip.id)}
-        onOpenExternal={(clip) => void window.pulseClip.openClip(clip.id)}
+        onReveal={(clip) => void revealClip(clip)}
+        onOpenExternal={(clip) => void openClipExternally(clip)}
         onDelete={setDeleteCandidate}
       />
       <ConfirmDialog

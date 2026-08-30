@@ -27,6 +27,7 @@ import { resolveAppAssetPath } from './app-assets';
 import { ClipRepository } from './clip-repository';
 import { DiskSafetyService } from './disk-safety';
 import { registerIpcHandlers } from './ipc-handlers';
+import { isUuid } from './input-validation';
 import { Logger } from './logger';
 import { RendererCrashPolicy } from './renderer-crash-policy';
 import { SettingsStore } from './settings-store';
@@ -93,8 +94,9 @@ const rendererCrashPolicy = new RendererCrashPolicy(
 
 app.on('second-instance', () => showMainWindow());
 
-app.whenReady().then(initialize).catch((error) => {
+app.whenReady().then(initialize).catch(async (error) => {
   logger?.error('Fatal initialization failure', error);
+  await logger?.flush().catch(() => undefined);
   app.quit();
 });
 
@@ -132,7 +134,7 @@ async function initialize(): Promise<void> {
     () => sendAppEvent('storage:safety-stop-requested'),
   );
 
-  setupProtocolHandlers();
+  await setupProtocolHandlers();
   setupCapturePermissions();
   mainWindow = createMainWindow();
   createTray();
@@ -160,6 +162,8 @@ async function initialize(): Promise<void> {
   mainWindow.once('ready-to-show', () => {
     if (!process.argv.includes('--hidden')) mainWindow?.show();
   });
+
+  await loadMainWindow(mainWindow);
 
   if (recovered > 0) {
     logger.info('Recovered interrupted recordings', { count: recovered });
@@ -229,12 +233,15 @@ function createMainWindow(): BrowserWindow {
     }
   });
 
-  if (isDevelopment && process.env.VITE_DEV_SERVER_URL) {
-    void window.loadURL(process.env.VITE_DEV_SERVER_URL);
-  } else {
-    void window.loadURL('pulseclip://app/index.html');
-  }
   return window;
+}
+
+async function loadMainWindow(window: BrowserWindow): Promise<void> {
+  if (isDevelopment && process.env.VITE_DEV_SERVER_URL) {
+    await window.loadURL(process.env.VITE_DEV_SERVER_URL);
+    return;
+  }
+  await window.loadURL('pulseclip://app/index.html');
 }
 
 function setupCapturePermissions(): void {
@@ -350,8 +357,8 @@ function applyLoginItemSettings(): void {
   });
 }
 
-function setupProtocolHandlers(): void {
-  void protocol.handle('pulseclip', async (request) => {
+async function setupProtocolHandlers(): Promise<void> {
+  await protocol.handle('pulseclip', async (request) => {
     try {
       const url = new URL(request.url);
       if (url.hostname === 'app') {
@@ -374,7 +381,7 @@ function setupProtocolHandlers(): void {
 
       if (url.hostname !== 'media') return new Response('Not found', { status: 404 });
       const id = decodeURIComponent(url.pathname.slice(1));
-      if (!/^[0-9a-f-]{36}$/i.test(id)) {
+      if (!isUuid(id)) {
         return new Response('Bad request', { status: 400 });
       }
       const filePath = await clipRepository.resolveMediaPath(id);

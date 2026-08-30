@@ -1,6 +1,6 @@
 {
   "name": "pulseclip",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Local-first Windows game recorder with instant replay",
   "author": "PulseClip Contributors",

@@ -2433,6 +2433,16 @@ input[type="range"]::-webkit-slider-thumb {
 .splash-screen > svg { margin-bottom: 10px; color: var(--coral); }
 .splash-screen strong { font-size: 12px; }
 .splash-screen p { margin: 6px 0 0; color: #606775; font-size: 9px; }
+.splash-error p {
+  max-width: 420px;
+  margin-top: 8px;
+  color: #9198a6;
+  font-size: 11px;
+  line-height: 1.55;
+  text-align: center;
+}
+.splash-error-actions { display: flex; gap: 10px; margin-top: 22px; }
+.splash-error-actions .button { min-width: 108px; }
 
 /* Readability, target sizing, and keyboard accessibility */
 button:focus-visible,

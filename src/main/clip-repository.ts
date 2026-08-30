@@ -18,6 +18,7 @@ import type {
 } from '../shared/types';
 import type { SettingsStore } from './settings-store';
 import type { Logger } from './logger';
+import { isUuid } from './input-validation';
 
 interface StoredClip extends Omit<Clip, 'mediaUrl'> {
   schemaVersion: 1;
@@ -25,7 +26,6 @@ interface StoredClip extends Omit<Clip, 'mediaUrl'> {
 
 const VIDEO_PREFIX = 'PulseClip_';
 const SIDECAR_SUFFIX = '.pulseclip.json';
-const CLIP_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class ClipRepository {
   constructor(
@@ -300,7 +300,7 @@ async function sanitizeStoredClip(
 }
 
 function isValidClipId(value: unknown): value is string {
-  return typeof value === 'string' && CLIP_ID_PATTERN.test(value);
+  return isUuid(value);
 }
 
 function cleanText(value: unknown, fallback: string): string {

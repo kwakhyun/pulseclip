@@ -75,7 +75,7 @@ const api: PulseClipApi = {
   reportRuntimeStatus: (status: RuntimeStatus) =>
     ipcRenderer.invoke(IPC.reportRuntimeStatus, status),
   completeShutdown: () => ipcRenderer.invoke(IPC.shutdownReady),
-  windowAction: (action: 'minimize' | 'maximize' | 'close') =>
+  windowAction: (action: 'minimize' | 'maximize' | 'close' | 'quit') =>
     ipcRenderer.invoke(IPC.windowAction, action),
   onAppEvent: (name: AppEventName, listener: () => void) => {
     if (!(APP_EVENTS as readonly string[]).includes(name)) {

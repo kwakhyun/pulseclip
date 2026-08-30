@@ -190,7 +190,7 @@ export interface PulseClipApi {
   notify(title: string, body: string): Promise<void>;
   reportRuntimeStatus(status: RuntimeStatus): Promise<void>;
   completeShutdown(): Promise<void>;
-  windowAction(action: 'minimize' | 'maximize' | 'close'): Promise<void>;
+  windowAction(action: 'minimize' | 'maximize' | 'close' | 'quit'): Promise<void>;
   onAppEvent<T extends AppEventName>(name: T, listener: () => void): () => void;
 }
 

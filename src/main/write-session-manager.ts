@@ -12,6 +12,7 @@ import { buildClipFileName, ClipRepository } from './clip-repository';
 import type { SettingsStore } from './settings-store';
 import type { Logger } from './logger';
 import type { DiskSafetyService } from './disk-safety';
+import { validateUuid } from './input-validation';
 
 interface WriteSession {
   id: string;
@@ -140,9 +141,7 @@ export class WriteSessionManager {
   }
 
   private requireSession(sessionId: string): WriteSession {
-    if (!/^[0-9a-f-]{36}$/i.test(sessionId)) {
-      throw new Error('녹화 세션 ID가 올바르지 않습니다.');
-    }
+    validateUuid(sessionId, '녹화 세션 ID');
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error('녹화 세션을 찾을 수 없습니다.');
     return session;

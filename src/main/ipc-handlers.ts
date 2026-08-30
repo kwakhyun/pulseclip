@@ -26,6 +26,7 @@ import type { WriteSessionManager } from './write-session-manager';
 import type { Logger } from './logger';
 import { buildDiagnosticReport } from './diagnostics';
 import type { DiskSafetyService } from './disk-safety';
+import { requireBoolean, validateUuid } from './input-validation';
 
 interface RegisterIpcOptions {
   window: BrowserWindow;
@@ -84,7 +85,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
 
   handle(IPC.bootstrap, async () => {
     const currentClips = await clips.list();
-    return {
+    const result = {
       appVersion: app.getVersion(),
       platform: process.platform,
       settings: settings.get(),
@@ -93,6 +94,8 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
       diskSpace: await diskSafety.inspect(),
       shortcutRegistration: getShortcutRegistration(),
     };
+    logger.info('Renderer bootstrap completed', { clipCount: currentClips.length });
+    return result;
   });
 
   handle(IPC.listSources, () => listCaptureSources());
@@ -180,7 +183,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
   });
 
   handle(IPC.favoriteClip, async (_event, id: unknown, favorite: unknown) => {
-    return clips.setFavorite(validateId(id), Boolean(favorite));
+    return clips.setFavorite(validateId(id), requireBoolean(favorite, '즐겨찾기'));
   });
 
   handle(IPC.deleteClip, async (_event, id: unknown) => {
@@ -255,6 +258,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
       if (window.isMaximized()) window.unmaximize();
       else window.maximize();
     } else if (action === 'close') window.close();
+    else if (action === 'quit') app.quit();
     else throw new Error('지원하지 않는 창 동작입니다.');
   });
 
@@ -276,7 +280,7 @@ function validatePrepareCapture(input: unknown): PrepareCaptureRequest {
   if (!isRecord(input)) throw new Error('캡처 요청이 올바르지 않습니다.');
   return {
     sourceId: cleanText(input.sourceId, 512),
-    includeSystemAudio: Boolean(input.includeSystemAudio),
+    includeSystemAudio: requireBoolean(input.includeSystemAudio, '시스템 오디오'),
   };
 }
 
@@ -317,20 +321,20 @@ function validateRuntimeStatus(input: unknown): RuntimeStatus {
 function validateRendererDiagnostics(input: unknown): RendererDiagnosticSnapshot {
   if (!isRecord(input)) throw new Error('렌더러 진단 정보가 올바르지 않습니다.');
   return {
-    webCodecsAvailable: Boolean(input.webCodecsAvailable),
-    h264Supported: Boolean(input.h264Supported),
-    aacSupported: Boolean(input.aacSupported),
+    webCodecsAvailable: requireBoolean(input.webCodecsAvailable, 'WebCodecs 지원'),
+    h264Supported: requireBoolean(input.h264Supported, 'H.264 지원'),
+    aacSupported: requireBoolean(input.aacSupported, 'AAC 지원'),
     captureSourceCount: boundedNumber(input.captureSourceCount, 0, 10_000, '캡처 소스 수'),
     microphoneCount: boundedNumber(input.microphoneCount, 0, 1_000, '마이크 수'),
-    selectedSourceAvailable: Boolean(input.selectedSourceAvailable),
+    selectedSourceAvailable: requireBoolean(
+      input.selectedSourceAvailable,
+      '선택한 소스 상태',
+    ),
   };
 }
 
 function validateId(value: unknown): string {
-  if (typeof value !== 'string' || !/^[0-9a-f-]{36}$/i.test(value)) {
-    throw new Error('ID 형식이 올바르지 않습니다.');
-  }
-  return value;
+  return validateUuid(value);
 }
 
 function cleanText(value: unknown, maximumLength: number): string {

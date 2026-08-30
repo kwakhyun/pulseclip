@@ -23,6 +23,8 @@ instant replay remux      append-only fMP4 stream
 
 렌더러는 화면과 오디오 권한 및 WebCodecs만 사용한다. Node 통합은 비활성화하고 샌드박스를 켠다. 파일시스템, 전역 단축키, 창 제어, 트레이, 설정 저장은 메인 프로세스만 수행한다.
 
+프로덕션 시작 순서는 전용 프로토콜 등록 완료 → 메인 창 생성 → 권한·IPC 핸들러 등록 → 렌더러 로드 순으로 직렬화한다. 렌더러는 IPC가 준비된 뒤에만 bootstrap을 요청하며, 완료 여부를 구조화 로그에 남긴다.
+
 ## 미디어 파이프라인
 
 `MediaStreamVideoTrackSource`와 `MediaStreamAudioTrackSource`가 캡처 트랙을 한 번만 인코딩한다. 인코딩 콜백에서 받은 패킷은 다음 두 소비자에 전달한다.
@@ -50,6 +52,7 @@ Documents/PulseClip/
 - ASAR 무결성 검증과 `OnlyLoadAppFromAsar`를 활성화하고 Run-as-Node, `NODE_OPTIONS`, CLI inspector 퓨즈를 비활성화
 - preload에서 기능별 최소 API만 노출
 - 모든 IPC 발신 프레임과 인자 검증
+- 클립·쓰기 세션 ID는 정규 UUID만 허용하고 불리언 입력은 문자열·숫자로 강제 변환하지 않음
 - 외부 탐색과 임의 URL 로드 차단
 - 미디어 프로토콜은 저장소에 등록된 clip ID만 허용
 - 출력 경로는 설정에서 선택한 디렉터리 아래에서만 생성
