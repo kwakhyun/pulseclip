@@ -36,7 +36,7 @@ PulseClip은 게임 중 녹화를 미처 시작하지 못해도 `F8`을 누르�
 | 핵심 경험 | 리플레이를 켜두고 장면이 지나간 뒤 `F8` → 바로 전 45초를 로컬 MP4로 저장 |
 | 제품 원칙 | Replay-first · Local-first · Reliability-first |
 | 구현 범위 | 제품 전략, UI/UX, 캡처·인코딩, 파일 복구, 보안 경계, 패키징, 랜딩 페이지, 자동 배포 |
-| 현재 상태 | `v0.1.0` 공개 베타 · Windows 10 22H2 이상 및 Windows 11 · x64/Arm64 |
+| 현재 상태 | `v0.1.1` 공개 베타 · Windows 10 22H2 이상 및 Windows 11 · x64/Arm64 |
 
 ## 문제 정의와 제품 전략
 
@@ -203,7 +203,7 @@ npm run verify
 - 로그 위치: Electron `userData/logs/pulseclip.log`
 
 > [!IMPORTANT]
-> `v0.1.0` 공개 베타는 아직 Authenticode로 서명되지 않았습니다. Windows SmartScreen 경고가 나타날 수 있으며, Release의 `SHA256SUMS.txt`로 파일 무결성을 확인할 수 있습니다.
+> `v0.1.1` 공개 베타는 아직 Authenticode로 서명되지 않았습니다. Windows SmartScreen 경고가 나타날 수 있으며, Release의 `SHA256SUMS.txt`로 파일 무결성을 확인할 수 있습니다.
 
 ### 개발 환경
 

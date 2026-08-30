@@ -18,7 +18,7 @@ import {
 } from "@phosphor-icons/react";
 
 const GITHUB_URL = "https://github.com/kwakhyun/pulseclip";
-const RELEASE_VERSION = "0.1.0";
+const RELEASE_VERSION = "0.1.1";
 const DOWNLOAD_URL = `${GITHUB_URL}/releases/download/v${RELEASE_VERSION}/PulseClip-${RELEASE_VERSION}-Setup.exe`;
 const ASSET_BASE = "./assets/";
 
@@ -205,7 +205,7 @@ function Hero() {
       </div>
 
       <div className="hero-copy" data-reveal>
-        <p className="product-meta"><span>Windows 10/11</span><span>v0.1.0 공개 베타</span></p>
+        <p className="product-meta"><span>Windows 10/11</span><span>v{RELEASE_VERSION} 공개 베타</span></p>
         <h1 id="hero-title">
           플레이에 집중하세요.
           <span>명장면은 F8로 남기세요.</span>
@@ -429,7 +429,7 @@ function FinalCta() {
       </div>
       <div className="content-shell final-cta__content" data-reveal>
         <img className="cta-icon" src={`${ASSET_BASE}pulseclip-icon.png`} alt="" width="70" height="70" loading="lazy" />
-        <p className="release-line">Windows 10/11 · v0.1.0</p>
+        <p className="release-line">Windows 10/11 · v{RELEASE_VERSION}</p>
         <h2 id="final-cta-title">명장면을 놓쳤다면,<br /><span>F8을 누르세요.</span></h2>
         <p>바로 전 45초를 MP4로 내 PC에 저장합니다.</p>
         <div className="hero-actions">
