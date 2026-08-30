@@ -1,5 +1,7 @@
 # PulseClip landing design QA
 
+> Historical snapshot: this QA was completed for PulseClip `v0.1.0` on 2026-08-29. It records the state verified at that time and is not the current release status. Later revisions are documented in `audit/`; current download delivery is documented in `README.md`.
+
 ## Source and implementation evidence
 
 - Source visuals: `design-reference/option-1.png`, `design-reference/option-2.png`, `design-reference/option-3.png`
@@ -44,6 +46,6 @@ The source references and implementation are placed in the same combined image i
 
 ## Release delivery
 
-The repository and `v0.1.0` release are public. All landing-page download CTAs point directly to the combined x64/arm64 installer instead of routing visitors through the GitHub release page.
+At the time of this snapshot, the repository and `v0.1.0` release were public. All landing-page download CTAs pointed directly to the combined x64/arm64 installer instead of routing visitors through the GitHub release page.
 
-final result: passed
+snapshot result: passed

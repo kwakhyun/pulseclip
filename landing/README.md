@@ -10,6 +10,8 @@ PulseClip의 공개 배포용 한국어 랜딩 페이지입니다. 세 가지 �
 
 ## Local development
 
+Node.js 22.12 이상이 필요합니다.
+
 ```bash
 npm install
 npm run dev

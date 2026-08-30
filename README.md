@@ -21,7 +21,7 @@
   </p>
 </div>
 
-![PulseClip 홈 화면](landing/public/assets/pulseclip-app-home.jpg)
+![NTE 게임 화면을 캡처 소스로 선택한 PulseClip 홈 화면](landing/public/assets/pulseclip-app-home-nte.png)
 
 ## 프로젝트 소개
 
@@ -92,7 +92,7 @@ PulseClip은 게임 중 녹화를 미처 시작하지 못해도 `F8`을 누르�
 ### 녹화와 즉시 리플레이
 
 - 화면·창 선택과 실시간 미리보기
-- H.264 우선 WebCodecs 인코딩과 AAC 오디오
+- H.264·AAC 우선 WebCodecs 인코딩과 VP9·VP8·Opus 호환 폴백
 - 15~180초 순환 리플레이와 `F8` 즉시 저장
 - `F9` 일반 녹화와 append-only fragmented MP4 기록
 - Windows 시스템 오디오와 선택적 마이크 믹싱
@@ -209,7 +209,7 @@ npm run verify
 
 ### 개발 환경
 
-Node.js 22 이상이 필요합니다.
+Node.js 22.12 이상이 필요합니다.
 
 ```powershell
 npm ci

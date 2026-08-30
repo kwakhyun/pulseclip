@@ -235,8 +235,8 @@ function Hero() {
       <div className="product-stage" data-reveal>
         <figure className="product-window">
           <img
-            src={`${ASSET_BASE}pulseclip-app-home.jpg`}
-            alt="PulseClip 홈 화면. 게임 화면 미리보기와 전체 녹화, 리플레이 준비, 최근 45초 저장 기능을 보여줍니다."
+            src={`${ASSET_BASE}pulseclip-app-home-nte.png`}
+            alt="NTE 게임 화면을 캡처 소스로 선택한 PulseClip 홈 화면. 전체 녹화, 리플레이 준비, 최근 45초 저장 기능을 보여줍니다."
             width="1442"
             height="901"
             fetchPriority="high"

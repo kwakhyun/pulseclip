@@ -7,7 +7,7 @@ Windows Desktop Capture + Loopback Audio
                     │
               sandboxed renderer
                     │
-      MediaStream → WebCodecs (H.264/AAC)
+      MediaStream → WebCodecs (우선 H.264/AAC, 호환 폴백)
                     │
         ┌───────────┴────────────┐
         │                        │
@@ -27,7 +27,7 @@ instant replay remux      append-only fMP4 stream
 
 ## 미디어 파이프라인
 
-`MediaStreamVideoTrackSource`와 `MediaStreamAudioTrackSource`가 캡처 트랙을 한 번만 인코딩한다. 인코딩 콜백에서 받은 패킷은 다음 두 소비자에 전달한다.
+`MediaStreamVideoTrackSource`와 `MediaStreamAudioTrackSource`가 캡처 트랙을 한 번만 인코딩한다. 영상은 H.264(AVC)를 우선하고 VP9, VP8 순으로 폴백하며, 오디오는 AAC를 우선하고 Opus로 폴백한다. 인코딩 콜백에서 받은 패킷은 다음 두 소비자에 전달한다.
 
 - 리플레이 링: 설정 길이 + 키프레임 여유분만 보관한다. 저장 시 목표 시점 이전의 가장 가까운 키프레임부터 타임스탬프를 0 기준으로 복제해 새 MP4로 리먹싱한다.
 - 일반 녹화: 링의 최신 키프레임과 후속 패킷으로 파일을 즉시 시드한 뒤 새 패킷을 fragmented MP4에 추가하고 IPC 쓰기 스트림으로 디스크에 순차 기록한다. 짧은 녹화도 다음 키프레임을 기다리지 않으며 시작 프레임을 잃지 않는다.
@@ -37,12 +37,12 @@ instant replay remux      append-only fMP4 stream
 ## 저장 구조
 
 ```text
-Documents/PulseClip/
+Videos/PulseClip/
   PulseClip_2026-08-28_21-30-05_Replay.mp4
   PulseClip_2026-08-28_21-30-05_Replay.mp4.pulseclip.json
 ```
 
-설정과 로그는 Electron `userData` 아래에 저장한다. 영상과 사이드카 메타데이터는 사용자가 선택한 폴더에 둔다. 활성 파일은 `.part` 확장자를 사용하고 완료 후 원자적으로 이름을 바꾼다.
+설정과 로그는 Electron `userData` 아래에 저장한다. 영상과 사이드카 메타데이터의 기본 위치는 Windows `동영상/PulseClip`이며, 사용자가 설정에서 다른 폴더를 선택할 수 있다. 활성 파일은 `.part` 확장자를 사용하고 완료 후 원자적으로 이름을 바꾼다.
 
 ## 보안 경계
 

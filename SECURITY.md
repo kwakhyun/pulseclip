@@ -6,8 +6,8 @@ Security fixes are provided for the latest published PulseClip release.
 
 | Version | Supported |
 | --- | --- |
-| 0.1.x | Yes |
-| Earlier versions | No |
+| 0.1.3 (latest) | Yes |
+| 0.1.2 and earlier | No |
 
 ## Reporting a vulnerability
 

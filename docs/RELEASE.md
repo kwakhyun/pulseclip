@@ -2,6 +2,8 @@
 
 ## 로컬 검증
 
+Node.js 22.12 이상을 사용한다.
+
 ```powershell
 npm ci
 npm run verify
