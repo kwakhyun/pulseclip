@@ -9,6 +9,6 @@
 - 패키징된 실행 파일은 ASAR 무결성 검증과 앱 코드의 ASAR 전용 로드를 강제하고, Run-as-Node·`NODE_OPTIONS`·CLI inspector·file 프로토콜 추가 권한을 퓨즈 단계에서 비활성화한다.
 - CI는 Windows 패키징 후 실행 파일의 8개 Electron 보안 퓨즈 상태를 다시 읽어 기대값과 일치하는지 검증한다.
 - CI에서 Electron 앱 빌드·패키징과 프로덕션 의존성 감사를 수행하고, 공개 릴리스에는 SBOM과 SHA-256 체크섬을 함께 제공한다.
-- `v0.1.1` 공개 베타는 Authenticode 미서명 상태이므로 Windows SmartScreen 경고가 나타날 수 있다. 정식 릴리스 전 신뢰된 인증서로 실행 파일과 설치 프로그램을 서명해야 한다.
+- `v0.1.2` 공개 베타는 Authenticode 미서명 상태이므로 Windows SmartScreen 경고가 나타날 수 있다. 정식 릴리스 전 신뢰된 인증서로 실행 파일과 설치 프로그램을 서명해야 한다.
 
 취약점은 저장소의 **Security → Report a vulnerability** 비공개 보안 권고를 통해 접수한다. 공개 이슈에는 취약점 상세나 녹화 콘텐츠, 민감한 로컬 경로를 올리지 않는다.

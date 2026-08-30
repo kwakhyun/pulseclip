@@ -27,4 +27,4 @@ npm run preview
 
 ## Download delivery
 
-다운로드 버튼은 `https://github.com/kwakhyun/pulseclip/releases/download/v0.1.1/PulseClip-0.1.1-Setup.exe`에 직접 연결됩니다. 이 통합 설치 파일은 x64와 arm64를 함께 포함합니다. 새 릴리스에서는 `src/App.jsx`의 `RELEASE_VERSION`과 `index.html`의 JSON-LD `downloadUrl`을 함께 갱신해야 합니다.
+다운로드 버튼은 `https://github.com/kwakhyun/pulseclip/releases/download/v0.1.2/PulseClip-0.1.2-Setup.exe`에 직접 연결됩니다. 이 통합 설치 파일은 x64와 arm64를 함께 포함합니다. 새 릴리스에서는 `src/App.jsx`의 `RELEASE_VERSION`과 `index.html`의 JSON-LD `downloadUrl`을 함께 갱신해야 합니다.

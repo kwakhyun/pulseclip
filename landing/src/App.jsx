@@ -18,7 +18,7 @@ import {
 } from "@phosphor-icons/react";
 
 const GITHUB_URL = "https://github.com/kwakhyun/pulseclip";
-const RELEASE_VERSION = "0.1.1";
+const RELEASE_VERSION = "0.1.2";
 const DOWNLOAD_URL = `${GITHUB_URL}/releases/download/v${RELEASE_VERSION}/PulseClip-${RELEASE_VERSION}-Setup.exe`;
 const ASSET_BASE = "./assets/";
 
