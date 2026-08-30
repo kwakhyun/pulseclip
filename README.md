@@ -21,7 +21,7 @@
   </p>
 </div>
 
-![NTE 게임 화면을 캡처 소스로 선택한 PulseClip 홈 화면](landing/public/assets/pulseclip-app-home-nte.png)
+![NTE의 보트 장면을 캡처 소스로 선택한 PulseClip 홈 화면](landing/public/assets/pulseclip-app-home-nte.png)
 
 ## 프로젝트 소개
 
