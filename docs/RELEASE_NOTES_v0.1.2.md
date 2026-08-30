@@ -9,13 +9,13 @@
 - 패키징된 `app.asar`의 Windows 무결성 검증과 ASAR 전용 앱 코드 로딩 활성화
 - `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS`, `NODE_EXTRA_CA_CERTS`, CLI inspector 진입점 비활성화
 - 더 이상 필요하지 않은 `file://` 추가 권한 비활성화
-- 패키징 직후 실행 파일의 Electron 보안 퓨즈 8개를 읽어 검증하는 스크립트와 CI 게이트 추가
+- 패키징 직후 실행 파일의 Electron 보안 퓨즈 9개를 읽어 검증하는 스크립트와 CI 게이트 추가
 - 렌더러 로드 성공·실패 구조화 로그를 추가해 프로토콜 장애 진단성 향상
 
 ## 검증
 
 - 데스크톱 타입 검사, 38개 단위 테스트, 프로덕션 빌드, x64 Windows 패키징
-- 패키징된 x64·Arm64 실행 파일의 Electron 보안 퓨즈 8개 기대값 검증
+- 패키징된 x64·Arm64 실행 파일의 Electron 보안 퓨즈 9개 기대값 검증
 - 격리된 사용자 프로필에서 `pulseclip://app/index.html` 렌더러 로드 스모크 테스트
 - 데스크톱 프로덕션 의존성 감사: 알려진 취약점 0건
 

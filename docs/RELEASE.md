@@ -8,7 +8,7 @@ npm run verify
 npm run package
 ```
 
-`npm run package`와 `npm run dist`는 패키징 직후 실행 파일의 Electron 보안 퓨즈 8개를 검증한다. 이 검사가 실패한 산출물은 배포하지 않는다.
+`npm run package`와 `npm run dist`는 패키징 직후 실행 파일의 Electron 보안 퓨즈 9개를 검증한다. 이 검사가 실패한 산출물은 배포하지 않는다.
 
 ## 설치 파일
 

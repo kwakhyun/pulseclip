@@ -16,6 +16,7 @@ const expectedFuses = new Map([
   [FuseV1Options.OnlyLoadAppFromAsar, true],
   [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot, false],
   [FuseV1Options.GrantFileProtocolExtraPrivileges, false],
+  [FuseV1Options.WasmTrapHandlers, true],
 ]);
 
 const enabledState = '1'.charCodeAt(0);
