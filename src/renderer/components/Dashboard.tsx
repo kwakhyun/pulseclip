@@ -72,8 +72,8 @@ export function Dashboard({
       <div className="page-heading">
         <div>
           <span className="eyebrow">GAME CAPTURE STUDIO</span>
-          <h1>놓치고 싶지 않은 순간을<br /><em>지금부터 기억하세요.</em></h1>
-          <p>게임 성능을 방해하지 않는 로컬 녹화와 즉시 리플레이.</p>
+          <h1>{recording ? '플레이를 녹화하고 있습니다' : active ? '좋은 장면이 지나갔나요?' : '플레이를 기록할 준비'}</h1>
+          <p>{recording ? `${settings.hotkeys.toggleRecording}을 다시 누르면 녹화를 저장합니다.` : active ? `${settings.hotkeys.saveReplay}을 눌러 최근 ${settings.replaySeconds}초를 저장하세요.` : '녹화할 화면을 확인하고 리플레이 또는 전체 녹화를 시작하세요.'}</p>
         </div>
         <div className={`live-badge phase-${telemetry.phase}`}>
           <span />
@@ -260,8 +260,8 @@ function CapturePreview({
       ) : (
         <button type="button" className="preview-empty" onClick={onChooseSource}>
           <MonitorUp size={36} />
-          <strong>녹화할 화면을 선택하세요</strong>
-          <span>모니터 또는 게임 창을 선택할 수 있어요.</span>
+          <strong>{source ? source.name : '녹화할 화면을 선택하세요'}</strong>
+          <span>{source ? '캡처를 켜면 실시간 미리보기가 표시됩니다.' : '모니터 또는 게임 창을 선택할 수 있어요.'}</span>
         </button>
       )}
       <div className="preview-vignette" />

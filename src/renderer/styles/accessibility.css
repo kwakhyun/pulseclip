@@ -1,0 +1,148 @@
+/* Readability, target sizing, and keyboard accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #ffaaa3;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(255, 99, 88, 0.18);
+}
+
+.search-box:focus-within,
+.hotkey-input:focus-within {
+  border-color: rgba(255, 170, 163, 0.72);
+  box-shadow: 0 0 0 3px rgba(255, 99, 88, 0.12);
+}
+
+.brand small,
+.storage-mini small,
+.app-version { font-size: 10px; }
+.local-first-card p { color: #899394; font-size: 11px; }
+.eyebrow { font-size: 10px; }
+.page-heading p,
+.library-header p,
+.settings-header p { color: #9198a6; font-size: 13px; line-height: 1.5; }
+.live-badge { font-size: 11px; }
+.preview-live,
+.recording-overlay { font-size: 10px; }
+.preview-meta small { color: #858d9b; font-size: 10px; }
+.preview-meta strong { font-size: 12px; }
+.preview-meta button,
+.text-button,
+.refresh-button { min-height: 36px; font-size: 12px; }
+.record-orb-wrap > div small { color: #858c99; font-size: 10px; }
+.record-orb-wrap > div strong { font-size: 20px; }
+.button { height: 46px; font-size: 12px; }
+kbd { font-size: 10px; }
+.signal-item { min-height: 72px; }
+.signal-item small,
+.signal-item em { color: #858d9b; font-size: 10px; }
+.signal-item strong { font-size: 12px; }
+.stat-strip small { font-size: 10px; }
+.recent-info strong { font-size: 12px; }
+.recent-info span,
+.clip-kind,
+.clip-duration { font-size: 10px; }
+.empty-recent p { font-size: 11px; }
+
+.library-count { font-size: 11px; }
+.filter-tabs button,
+.segmented button { min-height: 38px; font-size: 12px; }
+.search-box { height: 42px; }
+.search-box input { font-size: 12px; }
+.clip-card-title strong { font-size: 13px; }
+.clip-card-title span { color: #89919f; font-size: 11px; }
+.clip-card-meta { color: #818997; font-size: 10px; }
+.favorite-button,
+.more-button { width: 36px; height: 36px; }
+.clip-menu { width: 172px; }
+.clip-menu button { height: 38px; font-size: 11px; }
+.library-empty p { font-size: 12px; }
+
+.restart-note { font-size: 11px; }
+.settings-section h2 { font-size: 14px; }
+.settings-section header p { color: #858d9b; font-size: 11px; }
+.setting-row,
+.toggle-row,
+.range-row { min-height: 76px; }
+.setting-row strong,
+.toggle-row strong,
+.range-label strong,
+.range-label span { font-size: 12px; }
+.setting-row small,
+.toggle-row small { color: #858d9b; font-size: 11px; line-height: 1.45; }
+.range-bounds { color: #737b89; font-size: 10px; }
+.setting-control select,
+.hotkey-input input { font-size: 12px; }
+.hotkey-input { height: 42px; }
+.hotkey-input span { font-size: 10px; }
+.folder-picker { height: 42px; }
+.folder-picker span,
+.folder-picker em { font-size: 11px; }
+.privacy-note p { color: #849592; font-size: 11px; }
+.settings-summary > small { font-size: 10px; }
+.settings-summary dl div { font-size: 11px; }
+.summary-warning { font-size: 11px; }
+
+.modal-header p { color: #939aa7; font-size: 12px; }
+.modal-close { width: 40px; height: 40px; }
+.filter-tabs.compact button { min-height: 36px; font-size: 11px; }
+.source-card-label strong { font-size: 12px; }
+.source-card-label small { color: #828a98; font-size: 10px; }
+.source-empty span,
+.modal-footer > span { color: #84918f; font-size: 11px; }
+.modal-footer .button { height: 40px; }
+.step-kicker { font-size: 10px; }
+.onboarding-step > p,
+.step-title-row + p { color: #9198a6; font-size: 12px; }
+.feature-list strong,
+.onboarding-options strong { font-size: 12px; }
+.feature-list small,
+.onboarding-options small { color: #858d9b; font-size: 11px; }
+.onboarding-source-list button > span { font-size: 11px; }
+.hotkey-preview small,
+.hotkey-preview > span { font-size: 10px; }
+.player-modal > header h2 { font-size: 15px; }
+.player-modal > header p { color: #858d9b; font-size: 11px; }
+.player-metadata { color: #858d9b; font-size: 10px; }
+.player-actions button { height: 40px; font-size: 11px; }
+.confirm-modal p { color: #9198a6; font-size: 12px; }
+.toast strong { font-size: 12px; }
+.toast p { color: #9198a6; font-size: 11px; }
+.toast > button { width: 32px; height: 32px; }
+.splash-screen p { font-size: 11px; }
+
+.spin { animation: spin 0.9s linear infinite; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes page-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes pulse-dot { 50% { opacity: 0.4; } }
+@keyframes orb-pulse { 0% { transform: scale(0.94); opacity: 0.8; } 80%, 100% { transform: scale(1.25); opacity: 0; } }
+
+@media (max-width: 1220px) {
+  .page { padding-left: 28px; padding-right: 28px; }
+  .capture-hero { grid-template-columns: minmax(0, 1.2fr) minmax(310px, 0.8fr); }
+  .control-column { padding: 19px; }
+  .recent-grid { grid-template-columns: repeat(3, 1fr); }
+  .recent-card:nth-child(4) { display: none; }
+  .clip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-layout { grid-template-columns: minmax(0, 1fr) 230px; }
+  .setting-control { min-width: 235px; }
+  .segmented,
+  .setting-control select,
+  .hotkey-input { width: 235px; }
+  .folder-picker { width: 300px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -24,6 +24,10 @@ const IPC = {
   runDiagnostics: 'diagnostics:run',
   exportDiagnostics: 'diagnostics:export',
   favoriteClip: 'clips:favorite',
+  renameClip: 'clips:rename',
+  beginTrim: 'files:begin-trim',
+  checkForUpdates: 'app:check-updates',
+  openReleasePage: 'app:open-release-page',
   deleteClip: 'clips:delete',
   revealClip: 'clips:reveal',
   openClip: 'clips:open',
@@ -35,7 +39,7 @@ const IPC = {
   reportRuntimeStatus: 'app:runtime-status',
   shutdownReady: 'app:shutdown-ready',
   windowAction: 'window:action',
-} as const;
+} as const satisfies typeof import('../shared/ipc').IPC;
 
 const APP_EVENTS = [
   'shortcut:save-replay',
@@ -61,6 +65,10 @@ const api: PulseClipApi = {
   exportDiagnostics: () => ipcRenderer.invoke(IPC.exportDiagnostics),
   setClipFavorite: (id: string, favorite: boolean) =>
     ipcRenderer.invoke(IPC.favoriteClip, id, favorite),
+  renameClip: (id, title) => ipcRenderer.invoke(IPC.renameClip, id, title),
+  beginTrim: (request) => ipcRenderer.invoke(IPC.beginTrim, request),
+  checkForUpdates: () => ipcRenderer.invoke(IPC.checkForUpdates),
+  openReleasePage: () => ipcRenderer.invoke(IPC.openReleasePage),
   deleteClip: (id: string) => ipcRenderer.invoke(IPC.deleteClip, id),
   revealClip: (id: string) => ipcRenderer.invoke(IPC.revealClip, id),
   openClip: (id: string) => ipcRenderer.invoke(IPC.openClip, id),

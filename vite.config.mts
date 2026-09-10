@@ -23,6 +23,12 @@ export default defineConfig(({ command }) => ({
     emptyOutDir: true,
     sourcemap: true,
     target: 'chrome142',
+    rolldownOptions: {
+      output: { codeSplitting: { groups: [
+        { name: 'media', test: /node_modules[\\/]mediabunny[\\/]/ },
+        { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+      ] } },
+    },
   },
   server: {
     port: 5173,

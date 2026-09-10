@@ -1,5 +1,6 @@
 import {
   mkdir,
+  lstat,
   open,
   readFile,
   readdir,
@@ -19,6 +20,7 @@ import type {
 import type { SettingsStore } from './settings-store';
 import type { Logger } from './logger';
 import { isUuid } from './input-validation';
+import { AsyncQueue } from '../shared/async-queue';
 
 interface StoredClip extends Omit<Clip, 'mediaUrl'> {
   schemaVersion: 1;
@@ -28,13 +30,31 @@ const VIDEO_PREFIX = 'PulseClip_';
 const SIDECAR_SUFFIX = '.pulseclip.json';
 
 export class ClipRepository {
+  private readonly operations = new AsyncQueue();
+  private readonly protectedIds = new Map<string, number>();
+  private mediaIndex = { folder: '', paths: new Map<string, string>() };
+
+  protect(id: string): () => void {
+    this.protectedIds.set(id, (this.protectedIds.get(id) ?? 0) + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const remaining = (this.protectedIds.get(id) ?? 1) - 1;
+      if (remaining > 0) this.protectedIds.set(id, remaining);
+      else this.protectedIds.delete(id);
+    };
+  }
   constructor(
     private readonly settings: SettingsStore,
     private readonly logger: Logger,
   ) {}
 
   async list(): Promise<Clip[]> {
-    const folder = this.settings.get().outputFolder;
+    return this.operations.run(() => this.listInFolder(this.settings.get().outputFolder));
+  }
+
+  private async listInFolder(folder: string): Promise<Clip[]> {
     await mkdir(folder, { recursive: true });
     const entries = await readdir(folder, { withFileTypes: true });
     const clips: Clip[] = [];
@@ -55,6 +75,7 @@ export class ClipRepository {
       }
     }
 
+    this.mediaIndex = { folder, paths: new Map(clips.map(clip => [clip.id, path.join(folder, clip.fileName)])) };
     return clips.sort(
       (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
     );
@@ -66,9 +87,14 @@ export class ClipRepository {
   }
 
   async resolveMediaPath(id: string): Promise<string | null> {
-    const clip = await this.get(id);
-    if (!clip) return null;
-    return path.join(this.settings.get().outputFolder, clip.fileName);
+    return this.operations.run(async () => {
+      const folder = this.settings.get().outputFolder;
+      if (this.mediaIndex.folder !== folder || !this.mediaIndex.paths.has(id)) await this.listInFolder(folder);
+      const filePath = this.mediaIndex.paths.get(id);
+      if (!filePath) return null;
+      const details = await lstat(filePath).catch(() => null);
+      return details?.isFile() ? filePath : null;
+    });
   }
 
   async registerCompletedFile(
@@ -77,6 +103,10 @@ export class ClipRepository {
     durationMs: number,
     recovered = false,
   ): Promise<Clip> {
+    return this.operations.run(() => this.registerFile(filePath, request, durationMs, recovered));
+  }
+
+  private async registerFile(filePath: string, request: BeginFileRequest, durationMs: number, recovered: boolean): Promise<Clip> {
     const details = await stat(filePath);
     const createdAt = new Date().toISOString();
     const kind: ClipKind = recovered ? 'recovered' : request.kind;
@@ -98,30 +128,53 @@ export class ClipRepository {
       recovered,
     };
     await this.writeMetadata(filePath, stored);
+    if (this.mediaIndex.folder === path.dirname(filePath)) this.mediaIndex.paths.set(stored.id, filePath);
     return withMediaUrl(stored);
   }
 
   async setFavorite(id: string, favorite: boolean): Promise<Clip> {
-    const clip = await this.get(id);
-    if (!clip) throw new Error('클립을 찾을 수 없습니다.');
-    const filePath = path.join(this.settings.get().outputFolder, clip.fileName);
-    const stored: StoredClip = {
-      ...clip,
-      schemaVersion: 1,
-      favorite: Boolean(favorite),
-    };
-    delete (stored as Partial<Clip>).mediaUrl;
-    await this.writeMetadata(filePath, stored);
-    return withMediaUrl(stored);
+    return this.updateMetadata(id, { favorite });
+  }
+
+  async rename(id: string, title: string): Promise<Clip> {
+    const cleaned = cleanText(title, '');
+    if (!cleaned || title.length > 120) throw new Error('클립 이름은 1~120자로 입력해 주세요.');
+    return this.updateMetadata(id, { title: cleaned });
+  }
+
+  private async updateMetadata(id: string, patch: Partial<Pick<Clip, 'title' | 'favorite'>>): Promise<Clip> {
+    return this.operations.run(async () => {
+      const folder = this.settings.get().outputFolder;
+      const clip = (await this.listInFolder(folder)).find(item => item.id === id);
+      if (!clip) throw new Error('클립을 찾을 수 없습니다.');
+      const filePath = path.join(folder, clip.fileName);
+      const stored: StoredClip = {
+        ...clip,
+        schemaVersion: 1,
+        ...patch,
+      };
+      delete (stored as Partial<Clip>).mediaUrl;
+      await this.writeMetadata(filePath, stored);
+      return withMediaUrl(stored);
+    });
   }
 
   async delete(id: string): Promise<void> {
-    const clip = await this.get(id);
-    if (!clip) throw new Error('클립을 찾을 수 없습니다.');
-    const filePath = path.join(this.settings.get().outputFolder, clip.fileName);
+    return this.operations.run(async () => {
+      const folder = this.settings.get().outputFolder;
+      const clip = (await this.listInFolder(folder)).find(item => item.id === id);
+      if (!clip) throw new Error('클립을 찾을 수 없습니다.');
+      await this.deleteInFolder(clip, folder);
+    });
+  }
+
+  private async deleteInFolder(clip: Clip, folder: string): Promise<void> {
+    if (this.protectedIds.has(clip.id)) throw new Error('클립을 내보내는 중입니다. 완료 후 삭제해 주세요.');
+    const filePath = path.join(folder, clip.fileName);
     await rm(filePath, { force: false });
+    this.mediaIndex.paths.delete(clip.id);
     await rm(metadataPath(filePath), { force: true });
-    this.logger.info('Clip deleted', { id, fileName: clip.fileName });
+    this.logger.info('Clip deleted', { id: clip.id, fileName: clip.fileName });
   }
 
   async storageStats(clips?: Clip[]): Promise<StorageStats> {
@@ -137,21 +190,27 @@ export class ClipRepository {
     };
   }
 
-  async enforceQuota(): Promise<void> {
-    const clips = await this.list();
+  async enforceQuota(preserveIds: readonly string[] = []): Promise<void> {
+    return this.operations.run(() => this.cleanupQuota(preserveIds));
+  }
+
+  private async cleanupQuota(preserveIds: readonly string[]): Promise<void> {
+    if (this.settings.get().autoCleanup === false) return;
+    const folder = this.settings.get().outputFolder;
+    const clips = await this.listInFolder(folder);
     const limit = this.settings.get().storageLimitGb * 1024 ** 3;
     let used = clips.reduce((sum, clip) => sum + clip.bytes, 0);
     if (used <= limit) return;
 
     const target = limit * 0.9;
     const candidates = clips
-      .filter((clip) => !clip.favorite)
+      .filter((clip) => !clip.favorite && !preserveIds.includes(clip.id) && !this.protectedIds.has(clip.id))
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
 
     for (const clip of candidates) {
       if (used <= target) break;
       try {
-        await this.delete(clip.id);
+        await this.deleteInFolder(clip, folder);
         used -= clip.bytes;
       } catch (error) {
         this.logger.warn('Quota cleanup could not delete a clip', {
@@ -262,7 +321,7 @@ function metadataPath(filePath: string): string {
 function withMediaUrl(stored: StoredClip): Clip {
   return {
     ...stored,
-    mediaUrl: `pulseclip://media/${encodeURIComponent(stored.id)}`,
+    mediaUrl: `pulseclip://app/media/${encodeURIComponent(stored.id)}`,
   };
 }
 
@@ -274,7 +333,7 @@ async function sanitizeStoredClip(
   const value = input as Partial<StoredClip>;
   const details = await stat(filePath);
   const kind: ClipKind =
-    value.kind === 'recording' || value.kind === 'replay' || value.kind === 'recovered'
+    value.kind === 'recording' || value.kind === 'replay' || value.kind === 'recovered' || value.kind === 'edited'
       ? value.kind
       : 'recovered';
   const createdAt = Number.isFinite(Date.parse(value.createdAt ?? ''))
@@ -294,7 +353,7 @@ async function sanitizeStoredClip(
     fps: boundedInteger(value.fps, 0, 240),
     codec: cleanText(value.codec, 'unknown'),
     bytes: details.size,
-    favorite: Boolean(value.favorite),
+    favorite: value.favorite === true,
     recovered: Boolean(value.recovered || kind === 'recovered'),
   };
 }
@@ -315,7 +374,7 @@ function boundedInteger(value: unknown, minimum: number, maximum: number): numbe
 }
 
 function createTitle(kind: ClipKind, createdAt: string): string {
-  const label = kind === 'replay' ? '리플레이' : kind === 'recording' ? '녹화' : '복구된 녹화';
+  const label = kind === 'replay' ? '리플레이' : kind === 'recording' ? '녹화' : kind === 'edited' ? '편집한 클립' : '복구된 녹화';
   const formatted = new Intl.DateTimeFormat('ko-KR', {
     month: '2-digit',
     day: '2-digit',
@@ -401,12 +460,12 @@ export async function isRecoverableFragmentedMp4(
   }
 }
 
-export function buildClipFileName(kind: 'recording' | 'replay'): string {
+export function buildClipFileName(kind: 'recording' | 'replay' | 'edited'): string {
   const stamp = new Date()
     .toISOString()
     .replace('T', '_')
     .replace(/:/g, '-')
     .replace(/\.\d{3}Z$/, '');
-  const label = kind === 'replay' ? 'Replay' : 'Recording';
+  const label = kind === 'replay' ? 'Replay' : kind === 'edited' ? 'Edited' : 'Recording';
   return `${VIDEO_PREFIX}${stamp}_${label}.mp4`;
 }

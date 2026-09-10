@@ -1,23 +1,15 @@
-# PulseClip landing page
+# PulseClip 랜딩페이지
 
-PulseClip의 공개 배포용 한국어 랜딩 페이지입니다. 세 가지 디자인 시안의 장점을 하나의 전환 흐름으로 합쳤습니다.
+무료 Windows 게임 녹화 앱 PulseClip의 한국어 소개·다운로드 페이지입니다. 기존의 어두운 배경, 코랄 강조색, 파형 이미지와 F8 데모를 유지합니다.
 
-- 양쪽에서 흐르는 전류형 히어로 인터랙션
-- 실제 PulseClip 화면을 사용한 가벼운 3D 틸트 제품 스테이지
-- 클릭과 실제 `F8` 키 입력에 반응하는 즉시 리플레이 데모
-- 로컬 저장, 녹화 안전성, 사용 방법, FAQ, 최종 다운로드 CTA
-- 프리렌더 HTML, canonical, Open Graph, JSON-LD, sitemap, robots, manifest
+## 실행과 검증
 
-## Local development
-
-Node.js 22.12 이상이 필요합니다.
+Node.js 22.12 이상이 필요합니다. 아래 명령은 `landing/`에서 실행합니다.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
-
-## Production verification
 
 ```bash
 npm run build
@@ -25,8 +17,27 @@ npm run test:sites
 npm run preview
 ```
 
-프로덕션 빌드는 `dist/client`에 정적 페이지를 만들고, Sites 호스팅에 필요한 `dist/server/index.js`와 `dist/.openai/hosting.json`도 함께 생성합니다.
+프로덕션 빌드는 `dist/client`에 프리렌더된 정적 페이지를 생성합니다. Sites용 `dist/server/index.js`와 `dist/.openai/hosting.json`도 함께 생성합니다. GitHub Pages에는 `dist/client`를 배포합니다.
 
-## Download delivery
+## 기능과 공개 버전
 
-다운로드 버튼은 `https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/PulseClip-0.1.3-Setup.exe`에 직접 연결됩니다. 이 통합 설치 파일은 x64와 arm64를 함께 포함합니다. 새 릴리스에서는 `src/App.jsx`의 `RELEASE_VERSION`과 `index.html`의 JSON-LD `downloadUrl`을 함께 갱신해야 합니다.
+- 공개 다운로드: **v0.1.3**. x64·Arm64 통합 설치 파일과 개별 설치 파일을 제공합니다.
+- 개발 기능: 루트 `package.json`의 버전을 읽어 별도 영역에 표시합니다. 현재 v0.1.4의 편집·프리셋은 공개 다운로드에 포함되지 않습니다.
+- 기본 45초와 15~180초 설정 범위, 리플레이를 미리 켜야 한다는 조건을 안내합니다.
+- 상태 점검·로컬 저장 화면은 기능 설명용 예시입니다. 웹페이지가 PC를 진단하거나 녹화하지 않습니다.
+- 다운로드 옆에서 파일 크기, 코드 서명 상태, 릴리스 안내를 확인할 수 있습니다.
+
+## 릴리스 정보 갱신
+
+`src/release.js`가 공개 버전, 다운로드 URL, 파일 크기, 검색 설명, JSON-LD의 공통 원본입니다. GitHub 릴리스에 설치 파일과 체크섬이 실제로 공개된 뒤 갱신하세요. 파일명 또는 패키징 방식이 바뀌면 URL 구성도 함께 수정합니다.
+
+`vite.config.mjs`가 같은 정보로 HTML 메타데이터를 생성합니다. `index.html`을 별도로 고칠 필요는 없습니다. 새 버전을 공개할 때는 개발 기능 영역·FAQ와 루트 README의 버전 구분도 검토합니다. 파일 크기는 실제 릴리스 자산의 바이트 수를 십진 MB로 반올림합니다.
+
+## UI와 접근성
+
+- 모바일 메뉴는 포커스를 유지하고 Escape로 닫으며, 데스크톱 너비로 돌아오면 닫힙니다.
+- 다운로드, 기본 탐색과 FAQ는 프리렌더 HTML로 제공됩니다. JavaScript 없이도 다운로드·FAQ를 사용할 수 있습니다.
+- 모션 감소 설정을 존중하며, F8 데모는 화면 녹화와 구분해 안내합니다.
+- 로컬 폰트를 사용하며 외부 폰트·분석 서비스 요청은 없습니다.
+
+정합성·반응형 검토와 화면 증거는 [검토 문서](../docs/LANDING_REVIEW_2026-09-10.md)에 정리했습니다.

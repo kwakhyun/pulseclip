@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   FolderOpen,
@@ -18,6 +18,11 @@ import type {
   AudioInputDevice,
   ShortcutRegistration,
 } from '../../shared/types';
+import { QUALITY_PRESETS, matchesPreset } from '../../shared/quality-presets';
+import { hotkeyProblem } from '../../shared/settings';
+import { mergeSettingsDraft } from '../settings-draft';
+import { formatBytes } from '../utils';
+import { UpdatePanel } from './UpdatePanel';
 
 interface SettingsPageProps {
   settings: AppSettings;
@@ -44,12 +49,18 @@ export function SettingsPage({
 }: SettingsPageProps) {
   const [draft, setDraft] = useState<AppSettings>(settings);
 
-  useEffect(() => setDraft(settings), [settings]);
+  const previous = useRef(settings);
+  useEffect(() => {
+    const old = previous.current;
+    setDraft(current => mergeSettingsDraft(current, old, settings));
+    previous.current = settings;
+  }, [settings]);
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(settings), [draft, settings]);
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
   const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
   };
+  const shortcutError = hotkeyProblem(draft.hotkeys);
 
   return (
     <div className="page settings-page">
@@ -60,6 +71,9 @@ export function SettingsPage({
 
       <div className="settings-layout">
         <div className="settings-content">
+          <section className="quality-presets" aria-label="녹화 품질 프리셋">
+            {QUALITY_PRESETS.map(preset => <button type="button" key={preset.id} aria-pressed={matchesPreset(draft, preset)} className={matchesPreset(draft, preset) ? 'selected' : ''} onClick={() => setDraft(current => ({ ...current, resolution: preset.resolution, fps: preset.fps, videoBitrateMbps: preset.videoBitrateMbps }))}><strong>{preset.name}</strong><span>{preset.description}</span></button>)}
+          </section>
           <SettingSection icon={<Monitor size={19} />} title="영상 품질" description="게임 성능과 영상 선명도의 균형을 정합니다.">
             <SettingRow label="해상도" hint="원본은 선택한 화면 크기를 그대로 사용합니다.">
               <div className="segmented four">
@@ -96,7 +110,7 @@ export function SettingsPage({
             {draft.microphone && (
               <>
                 <SettingRow label="입력 장치" hint={microphones.length === 0 ? '마이크 권한을 허용하면 장치 이름이 표시됩니다.' : undefined}>
-                  <select value={draft.microphoneDeviceId} onChange={(event) => patch('microphoneDeviceId', event.target.value)}>
+                  <select aria-label="마이크 입력 장치" value={draft.microphoneDeviceId} onChange={(event) => patch('microphoneDeviceId', event.target.value)}>
                     <option value="">Windows 기본 장치</option>
                     {microphones.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}
                   </select>
@@ -109,22 +123,24 @@ export function SettingsPage({
           <SettingSection icon={<RotateCcw size={19} />} title="즉시 리플레이" description="메모리에 유지할 최근 구간과 저장 단축키를 정합니다.">
             <RangeRow label="리플레이 길이" value={draft.replaySeconds} minimum={15} maximum={180} step={5} suffix="초" onChange={(value) => patch('replaySeconds', value)} />
             <SettingRow label="리플레이 저장 단축키" hint={!shortcutRegistration.saveReplay ? '현재 다른 앱에서 사용 중일 수 있습니다.' : '게임이 포커스된 상태에서도 동작합니다.'}>
-              <HotkeyInput value={draft.hotkeys.saveReplay} onChange={(value) => setDraft((current) => ({ ...current, hotkeys: { ...current.hotkeys, saveReplay: value } }))} valid={draft.hotkeys.saveReplay === settings.hotkeys.saveReplay ? shortcutRegistration.saveReplay : null} />
+              <HotkeyInput label="리플레이 저장 단축키" value={draft.hotkeys.saveReplay} onChange={(value) => setDraft((current) => ({ ...current, hotkeys: { ...current.hotkeys, saveReplay: value } }))} valid={draft.hotkeys.saveReplay === settings.hotkeys.saveReplay ? shortcutRegistration.saveReplay : null} />
             </SettingRow>
             <SettingRow label="녹화 시작/종료 단축키" hint={!shortcutRegistration.toggleRecording ? '현재 다른 앱에서 사용 중일 수 있습니다.' : undefined}>
-              <HotkeyInput value={draft.hotkeys.toggleRecording} onChange={(value) => setDraft((current) => ({ ...current, hotkeys: { ...current.hotkeys, toggleRecording: value } }))} valid={draft.hotkeys.toggleRecording === settings.hotkeys.toggleRecording ? shortcutRegistration.toggleRecording : null} />
+              <HotkeyInput label="녹화 시작/종료 단축키" value={draft.hotkeys.toggleRecording} onChange={(value) => setDraft((current) => ({ ...current, hotkeys: { ...current.hotkeys, toggleRecording: value } }))} valid={draft.hotkeys.toggleRecording === settings.hotkeys.toggleRecording ? shortcutRegistration.toggleRecording : null} />
             </SettingRow>
           </SettingSection>
 
           <SettingSection icon={<HardDrive size={19} />} title="저장공간" description="클립 위치와 자동 정리 한도를 관리합니다.">
+            <ToggleRow icon={<HardDrive size={17} />} label="저장 한도 초과 시 자동 정리" hint="끄면 클립을 직접 삭제할 때까지 보존합니다." checked={draft.autoCleanup} onChange={value => patch('autoCleanup', value)} />
             <SettingRow label="저장 폴더" hint="PulseClip이 만든 파일만 자동 정리 대상이 됩니다.">
-              <button type="button" className="folder-picker" onClick={onChooseOutputFolder} disabled={recording}><FolderOpen size={16} /><span>{draft.outputFolder}</span><em>변경</em></button>
+              <button type="button" className="folder-picker" onClick={onChooseOutputFolder} disabled={recording || saving}><FolderOpen size={16} /><span>{draft.outputFolder}</span><em>변경</em></button>
             </SettingRow>
             <RangeRow label="최대 사용량" value={draft.storageLimitGb} minimum={1} maximum={500} step={1} suffix="GB" onChange={(value) => patch('storageLimitGb', value)} />
             <div className="privacy-note"><ShieldCheck size={17} /><p><strong>즐겨찾기는 자동 삭제하지 않습니다.</strong><br />한도를 넘으면 오래된 일반 클립부터 90% 수준까지 정리합니다.</p></div>
           </SettingSection>
 
           <SettingSection icon={<Gamepad2 size={19} />} title="앱 동작" description="시작과 알림 방식을 선택합니다.">
+            <ToggleRow icon={<Monitor size={17} />} label="마우스 커서 녹화" hint="캡처 환경이 지원할 때 영상에 마우스 포인터를 표시합니다." checked={draft.recordCursor} onChange={value => patch('recordCursor', value)} />
             <ToggleRow icon={<Power size={17} />} label="Windows 시작 시 실행" hint="트레이에 조용히 시작합니다." checked={draft.launchAtStartup} onChange={(value) => patch('launchAtStartup', value)} />
             <ToggleRow icon={<RotateCcw size={17} />} label="실행 후 자동으로 리플레이 준비" hint="마지막으로 선택한 소스를 바로 캡처합니다." checked={draft.autoStartBuffer} onChange={(value) => patch('autoStartBuffer', value)} />
             <ToggleRow icon={<Bell size={17} />} label="저장 완료 알림" hint="게임 위에 Windows 알림을 표시합니다." checked={draft.showNotifications} onChange={(value) => patch('showNotifications', value)} />
@@ -141,8 +157,12 @@ export function SettingsPage({
             <div><dt>리플레이</dt><dd>최근 {draft.replaySeconds}초</dd></div>
             <div><dt>오디오</dt><dd>{draft.systemAudio ? '게임' : ''}{draft.systemAudio && draft.microphone ? ' + ' : ''}{draft.microphone ? '마이크' : !draft.systemAudio ? '없음' : ''}</dd></div>
           </dl>
-          <button type="button" className="button primary save-settings" disabled={!dirty || saving || recording} onClick={() => onSave(draft)}><Save size={17} />{saving ? '저장 중…' : '변경사항 저장'}</button>
+          <div className="storage-estimate"><small>예상 녹화 용량 / 시간</small><strong>약 {formatBytes((draft.videoBitrateMbps + (draft.systemAudio || draft.microphone ? 0.192 : 0)) * 1_000_000 / 8 * 3600)}</strong><small>리플레이 메모리 약 {formatBytes(draft.videoBitrateMbps * 1_000_000 / 8 * (draft.replaySeconds + 3))}</small></div>
+          {shortcutError && <p className="inline-error" role="alert">{shortcutError}</p>}
+          <button type="button" className="button primary save-settings" disabled={!dirty || saving || recording || Boolean(shortcutError)} onClick={() => onSave(draft)}><Save size={17} />{saving ? '작업 중…' : '변경사항 저장'}</button>
+          {dirty && <button type="button" className="button ghost" disabled={saving} onClick={() => setDraft(settings)}>변경사항 되돌리기</button>}
           {recording && <p className="summary-warning">녹화를 종료한 뒤 설정을 변경할 수 있습니다.</p>}
+          <UpdatePanel />
         </aside>
       </div>
     </div>
@@ -166,6 +186,6 @@ function RangeRow({ label, value, minimum, maximum, step, suffix, onChange }: { 
   return <div className="range-row"><div className="range-label"><strong>{label}</strong><span>{value} {suffix}</span></div><input type="range" aria-label={label} min={minimum} max={maximum} step={step} value={value} style={{ '--range-progress': `${ratio}%` } as React.CSSProperties} onChange={(event) => onChange(Number(event.target.value))} /><div className="range-bounds"><span>{minimum} {suffix}</span><span>{maximum} {suffix}</span></div></div>;
 }
 
-function HotkeyInput({ value, onChange, valid }: { value: string; onChange: (value: string) => void; valid: boolean | null }) {
-  return <label className={`hotkey-input ${valid === false ? 'invalid' : ''}`}><Keyboard size={15} /><input aria-label="전역 단축키" aria-invalid={valid === false} value={value} maxLength={64} onChange={(event) => onChange(event.target.value)} /><span role="status">{valid === null ? '저장 시 적용' : valid ? '등록됨' : '충돌'}</span></label>;
+function HotkeyInput({ label, value, onChange, valid }: { label: string; value: string; onChange: (value: string) => void; valid: boolean | null }) {
+  return <label className={`hotkey-input ${valid === false ? 'invalid' : ''}`}><Keyboard size={15} /><input aria-label={label} aria-invalid={valid === false} value={value} maxLength={64} onChange={(event) => onChange(event.target.value)} /><span role="status">{valid === null ? '저장 시 적용' : valid ? '등록됨' : '충돌'}</span></label>;
 }

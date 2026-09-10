@@ -14,6 +14,9 @@ import {
   type EncodedPacket,
   type VideoCodec,
 } from 'mediabunny';
+import { LivePacketWriter } from './LivePacketWriter';
+import { IpcAppendSink } from './IpcAppendSink';
+import { codecLabel, delay, errorMessage } from './media-utils';
 import { resolutionSize } from '../../shared/settings';
 import type {
   AppSettings,
@@ -88,6 +91,10 @@ export class ReplayCaptureEngine {
   private recoveryGeneration = 0;
   private deviceChangeHandler: (() => void) | null = null;
   private telemetryTimer: number | null = null;
+  private startTask: Promise<void> | null = null;
+  private stopTask: Promise<void> | null = null;
+  private recordingStopTask: Promise<Clip | null> | null = null;
+  private replayTask: Promise<Clip> | null = null;
 
   onTelemetry(listener: TelemetryListener): () => void {
     this.telemetryListeners.add(listener);
@@ -117,7 +124,14 @@ export class ReplayCaptureEngine {
   }
 
   async start(source: CaptureSource, settings: AppSettings): Promise<void> {
-    if (this.isActive()) await this.stop();
+    if (this.startTask) return this.startTask;
+    if (this.stopTask) await this.stopTask;
+    this.startTask = this.startCapture(source, settings).finally(() => { this.startTask = null; });
+    return this.startTask;
+  }
+
+  private async startCapture(source: CaptureSource, settings: AppSettings): Promise<void> {
+    if (this.isActive()) await this.stopCapture();
     this.stopping = false;
     this.settings = structuredClone(settings);
     this.source = source;
@@ -205,7 +219,7 @@ export class ReplayCaptureEngine {
         { width: dimensions.width, height: dimensions.height, quality: videoQuality },
       );
       if (!this.videoCodec) {
-        throw new Error('이 PC에서 사용할 수 있는 영상 하드웨어 인코더를 찾지 못했습니다.');
+        throw new Error('이 PC에서 사용할 수 있는 영상 인코더를 찾지 못했습니다.');
       }
       this.audioCodec = audioTrack
         ? await getFirstEncodableAudioCodec(['aac', 'opus'], {
@@ -240,7 +254,8 @@ export class ReplayCaptureEngine {
             width: dimensions.width,
             height: dimensions.height,
             fit: 'contain',
-            frameRate: settings.fps,
+            // MediaStreamVideoTrackSource already paces frames. Normalizing here
+            // a second time can interleave repeated frames across GOP boundaries.
           },
           onEncodedPacket: (packet, metadata) => this.handleVideoPacket(packet, metadata),
         },
@@ -290,12 +305,23 @@ export class ReplayCaptureEngine {
   }
 
   async stop(preserveRecovery = false): Promise<void> {
+    if (this.stopTask) return this.stopTask;
+    this.stopTask = (async () => {
+      await this.startTask?.catch(() => undefined);
+      await this.stopCapture(preserveRecovery);
+    })().finally(() => { this.stopTask = null; });
+    return this.stopTask;
+  }
+
+  private async stopCapture(preserveRecovery = false): Promise<void> {
     if (!preserveRecovery) {
       this.recoveryGeneration += 1;
       this.recovering = false;
     }
     if (this.telemetry.phase === 'idle') return;
     this.stopping = true;
+    await this.replayTask?.catch(() => undefined);
+    await this.recordingStopTask?.catch(() => undefined);
     if (this.manualWriter) await this.stopRecording().catch(() => undefined);
     await this.releaseMediaResources();
     this.clearPacketRing();
@@ -324,6 +350,10 @@ export class ReplayCaptureEngine {
       audioCodec: this.audioCodec,
       videoMetadata: this.videoMetadata!,
       audioMetadata: this.audioMetadata,
+      onError: error => {
+        this.patchTelemetry({ error: errorMessage(error) });
+        void this.stopRecording().catch(() => undefined);
+      },
     });
     await writer.start();
     const latestKeyFrameIndex = findLatestKeyFrameIndex(this.videoPackets);
@@ -346,6 +376,12 @@ export class ReplayCaptureEngine {
   }
 
   async stopRecording(): Promise<Clip | null> {
+    if (this.recordingStopTask) return this.recordingStopTask;
+    this.recordingStopTask = this.finishRecording().finally(() => { this.recordingStopTask = null; });
+    return this.recordingStopTask;
+  }
+
+  private async finishRecording(): Promise<Clip | null> {
     const writer = this.manualWriter;
     if (!writer) return null;
     const desiredEndTimestamp =
@@ -357,7 +393,7 @@ export class ReplayCaptureEngine {
     try {
       const clip = await writer.finish();
       this.clipListeners.forEach((listener) => listener(clip));
-      await window.pulseClip.notify('녹화가 저장되었습니다', clip.title);
+      await window.pulseClip.notify('녹화가 저장되었습니다', clip.title).catch(() => undefined);
       return clip;
     } finally {
       this.recordingStartedAt = 0;
@@ -367,6 +403,12 @@ export class ReplayCaptureEngine {
   }
 
   async saveReplay(seconds?: number): Promise<Clip> {
+    if (this.replayTask) throw new Error('이미 리플레이를 저장하고 있습니다.');
+    this.replayTask = this.saveReplaySnapshot(seconds).finally(() => { this.replayTask = null; });
+    return this.replayTask;
+  }
+
+  private async saveReplaySnapshot(seconds?: number): Promise<Clip> {
     if (this.savingReplay) throw new Error('이미 리플레이를 저장하고 있습니다.');
     if (!this.canMux() || !this.settings || !this.source) {
       throw new Error('먼저 리플레이 준비를 켜 주세요.');
@@ -386,7 +428,7 @@ export class ReplayCaptureEngine {
       await window.pulseClip.notify(
         '리플레이가 저장되었습니다',
         `최근 ${Math.round(snapshot.durationSeconds)}초 · ${clip.title}`,
-      );
+      ).catch(() => undefined);
       return clip;
     } finally {
       this.savingReplay = false;
@@ -760,172 +802,6 @@ export class ReplayCaptureEngine {
   }
 }
 
-interface LiveWriterOptions {
-  kind: 'recording';
-  sourceName: string;
-  width: number;
-  height: number;
-  fps: number;
-  videoCodec: VideoCodec;
-  audioCodec: AudioCodec | null;
-  videoMetadata: EncodedVideoChunkMetadata;
-  audioMetadata: EncodedAudioChunkMetadata | null;
-}
-
-class LivePacketWriter {
-  private sessionId = '';
-  private output: Output | null = null;
-  private videoSource: EncodedVideoPacketSource | null = null;
-  private audioSource: EncodedAudioPacketSource | null = null;
-  private baseTimestamp: number | null = null;
-  private firstVideo = true;
-  private firstAudio = true;
-  private accepting = true;
-  private pendingAudio: EncodedPacket[] = [];
-  private videoQueue: Promise<void> = Promise.resolve();
-  private audioQueue: Promise<void> = Promise.resolve();
-  private failure: unknown = null;
-  private lastVideoEndTimestamp: number | null = null;
-  private readonly startedAt = performance.now();
-
-  constructor(private readonly options: LiveWriterOptions) {}
-
-  async start(): Promise<void> {
-    const session = await window.pulseClip.beginFile({
-      kind: this.options.kind,
-      sourceName: this.options.sourceName,
-      width: this.options.width,
-      height: this.options.height,
-      fps: this.options.fps,
-      codec: codecLabel(this.options.videoCodec, this.options.audioCodec),
-    });
-    this.sessionId = session.sessionId;
-    const sink = new IpcAppendSink(this.sessionId);
-    this.videoSource = new EncodedVideoPacketSource(this.options.videoCodec);
-    this.audioSource = this.options.audioCodec
-      ? new EncodedAudioPacketSource(this.options.audioCodec)
-      : null;
-    this.output = new Output({
-      format: new Mp4OutputFormat({
-        fastStart: 'fragmented',
-        minimumFragmentDuration: 1,
-      }),
-      target: new AppendOnlyStreamTarget(sink.writable),
-    });
-    this.output.addVideoTrack(this.videoSource, { frameRate: this.options.fps });
-    if (this.audioSource) this.output.addAudioTrack(this.audioSource);
-    this.output.setMetadataTags({ title: 'PulseClip Recording', artist: 'PulseClip' });
-    try {
-      await this.output.start();
-    } catch (error) {
-      await window.pulseClip.abortFile(this.sessionId, errorMessage(error));
-      throw error;
-    }
-  }
-
-  pushVideo(packet: EncodedPacket): void {
-    if (!this.accepting || !this.videoSource) return;
-    if (this.baseTimestamp === null) {
-      if (packet.type !== 'key') return;
-      this.baseTimestamp = packet.timestamp;
-      this.lastVideoEndTimestamp = packet.timestamp + packet.duration;
-      this.enqueueVideo(packet);
-      for (const audioPacket of this.pendingAudio) {
-        if (audioPacket.timestamp >= this.baseTimestamp) this.enqueueAudio(audioPacket);
-      }
-      this.pendingAudio = [];
-      return;
-    }
-    this.lastVideoEndTimestamp = Math.max(
-      this.lastVideoEndTimestamp ?? packet.timestamp,
-      packet.timestamp + packet.duration,
-    );
-    this.enqueueVideo(packet);
-  }
-
-  prime(videoPackets: EncodedPacket[], audioPackets: EncodedPacket[]): void {
-    for (const packet of videoPackets) this.pushVideo(packet);
-    for (const packet of audioPackets) this.pushAudio(packet);
-  }
-
-  async cancel(reason: string): Promise<void> {
-    this.accepting = false;
-    await this.output?.cancel().catch(() => undefined);
-    await window.pulseClip.abortFile(this.sessionId, reason);
-  }
-
-  pushAudio(packet: EncodedPacket): void {
-    if (!this.accepting || !this.audioSource) return;
-    if (this.baseTimestamp === null) {
-      this.pendingAudio.push(packet.clone());
-      if (this.pendingAudio.length > 500) this.pendingAudio.shift();
-      return;
-    }
-    if (packet.timestamp >= this.baseTimestamp) this.enqueueAudio(packet);
-  }
-
-  async finish(): Promise<Clip> {
-    this.accepting = false;
-    if (this.baseTimestamp === null || !this.output) {
-      await this.output?.cancel().catch(() => undefined);
-      const error = new Error('녹화가 너무 짧아 저장할 키프레임이 없습니다.');
-      await window.pulseClip.abortFile(this.sessionId, error.message);
-      throw error;
-    }
-    await Promise.all([this.videoQueue, this.audioQueue]);
-    if (this.failure) {
-      await this.output.cancel().catch(() => undefined);
-      await window.pulseClip.abortFile(this.sessionId, errorMessage(this.failure));
-      throw this.failure;
-    }
-    this.videoSource?.close();
-    this.audioSource?.close();
-    try {
-      await this.output.finalize();
-      const packetDurationMs =
-        this.baseTimestamp !== null && this.lastVideoEndTimestamp !== null
-          ? Math.max(0, (this.lastVideoEndTimestamp - this.baseTimestamp) * 1000)
-          : 0;
-      return await window.pulseClip.finalizeFile(this.sessionId, {
-        durationMs: packetDurationMs || performance.now() - this.startedAt,
-      });
-    } catch (error) {
-      await window.pulseClip.abortFile(this.sessionId, errorMessage(error));
-      throw error;
-    }
-  }
-
-  private enqueueVideo(packet: EncodedPacket): void {
-    const base = this.baseTimestamp!;
-    const metadata = this.firstVideo ? this.options.videoMetadata : undefined;
-    this.firstVideo = false;
-    this.videoQueue = this.videoQueue
-      .then(() =>
-        this.videoSource!.add(packet.clone({ timestamp: packet.timestamp - base }), metadata),
-      )
-      .catch((error) => {
-        this.failure = error;
-      });
-  }
-
-  private enqueueAudio(packet: EncodedPacket): void {
-    if (!this.audioSource || this.baseTimestamp === null) return;
-    const metadata = this.firstAudio ? this.options.audioMetadata ?? undefined : undefined;
-    this.firstAudio = false;
-    const base = this.baseTimestamp;
-    this.audioQueue = this.audioQueue
-      .then(() =>
-        this.audioSource!.add(
-          packet.clone({ timestamp: Math.max(0, packet.timestamp - base) }),
-          metadata,
-        ),
-      )
-      .catch((error) => {
-        this.failure = error;
-      });
-  }
-}
-
 async function writePacketSnapshot(
   snapshot: PacketSnapshot,
   details: {
@@ -995,19 +871,6 @@ async function writePacketSnapshot(
   }
 }
 
-class IpcAppendSink {
-  readonly writable: WritableStream<Uint8Array>;
-
-  constructor(sessionId: string) {
-    this.writable = new WritableStream<Uint8Array>({
-      write: async (chunk) => {
-        const copy = chunk.slice();
-        await window.pulseClip.appendFile(sessionId, copy.buffer as ArrayBuffer);
-      },
-    });
-  }
-}
-
 function findLatestKeyFrameIndex(packets: EncodedPacket[]): number {
   for (let index = packets.length - 1; index >= 0; index -= 1) {
     if (packets[index].type === 'key') return index;
@@ -1036,21 +899,4 @@ function fitCaptureDimensions(
 
 function toEven(value: number): number {
   return Math.max(2, Math.round(value / 2) * 2);
-}
-
-function codecLabel(video: VideoCodec, audio: AudioCodec | null): string {
-  return audio ? `${video.toUpperCase()} / ${audio.toUpperCase()}` : video.toUpperCase();
-}
-
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-}
-
-function errorMessage(error: unknown): string {
-  if (error instanceof DOMException) {
-    if (error.name === 'NotAllowedError') return '화면 또는 오디오 캡처 권한이 거부되었습니다.';
-    if (error.name === 'NotReadableError') return '선택한 화면을 현재 캡처할 수 없습니다.';
-  }
-  if (error instanceof Error && error.message) return error.message;
-  return '캡처 중 알 수 없는 오류가 발생했습니다.';
 }

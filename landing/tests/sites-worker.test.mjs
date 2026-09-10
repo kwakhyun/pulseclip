@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 import worker from "../worker/index.js";
+import { CHECKSUM_URL, DEVELOPMENT_VERSION, DOWNLOAD_URL, installers, RELEASE_VERSION } from "../src/release.js";
 
 test("serves existing static assets without a fallback", async () => {
   const calls = [];
@@ -67,48 +68,41 @@ test("emits the files required by Sites packaging", async () => {
   await access(new URL("../dist/.openai/hosting.json", import.meta.url));
 });
 
-test("uses a direct installer download and keeps the product preview tilt static", async () => {
-  const [appSource, styles, document] = await Promise.all([
-    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../index.html", import.meta.url), "utf8"),
-  ]);
-
-  const installerPath =
-    "releases/download/v0.1.3/PulseClip-0.1.3-Setup.exe";
-
-  assert.ok(
-    appSource.includes(
-      "releases/download/v${RELEASE_VERSION}/PulseClip-${RELEASE_VERSION}-Setup.exe",
-    ),
-  );
-  assert.ok(document.includes(installerPath));
-  assert.doesNotMatch(appSource, /handleProductMove|resetProduct|onPointerLeave/);
-  assert.doesNotMatch(styles, /--tilt-[xy]|product-stage:hover/);
+test("keeps visible downloads and search metadata on the published release", async () => {
+  const document = await readFile(new URL("../dist/client/index.html", import.meta.url), "utf8");
+  const schema = JSON.parse(document.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+  const software = schema["@graph"].find(item => item["@type"] === "SoftwareApplication");
+  assert.equal(software.softwareVersion, RELEASE_VERSION);
+  assert.equal(software.downloadUrl, DOWNLOAD_URL);
+  const downloads = [...document.matchAll(/href="([^"]+\/releases\/download\/[^"]+)"/g)].map(match => match[1]);
+  assert.ok(downloads.includes(DOWNLOAD_URL));
+  for (const installer of installers) assert.ok(downloads.includes(installer.url));
+  assert.ok(downloads.includes(CHECKSUM_URL));
+  assert.ok(downloads.every(url => new URL(url).pathname.includes(`/download/v${RELEASE_VERSION}/`)));
+  assert.doesNotMatch(document, /__PULSECLIP_[A-Z_]+__/);
 });
 
-test("uses natural Korean copy across the landing page and SEO metadata", async () => {
-  const [appSource, document] = await Promise.all([
-    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../index.html", import.meta.url), "utf8"),
+test("prerenders essential information and distinguishes upcoming features", async () => {
+  const document = await readFile(new URL("../dist/client/index.html", import.meta.url), "utf8");
+  const text = document.replace(/<!--.*?-->/g, "");
+  assert.match(text, /리플레이를 미리 켜두/);
+  assert.match(text, /기본 설정에서는 F8을 누르면 바로 전 45초가 저장됩니다/);
+  assert.match(text, /SmartScreen/);
+  assert.match(text, /현재 PC의 진단 결과가 아니며/);
+  assert.ok(text.includes(`v${DEVELOPMENT_VERSION}에서 준비한 변화`));
+  assert.ok(text.includes(`아래 기능은 공개 베타 v${RELEASE_VERSION}에 포함되지 않습니다.`));
+  assert.doesNotMatch(text, /3개 항목 정상|명장면을 놓쳤다면|게임 성능을 방해하지/);
+});
+
+test("preserves navigation anchors, local images and the static product preview", async () => {
+  const [document, styles] = await Promise.all([
+    readFile(new URL("../dist/client/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
   ]);
-
-  assert.match(appSource, /플레이에 집중하세요\./);
-  assert.match(appSource, /명장면은 F8로 남기세요\./);
-  assert.match(appSource, /바로 전 45초가 저장됩니다\./);
-  assert.match(document, /계정 가입이나 클라우드 업로드가 필요 없습니다\./);
-
-  for (const awkwardCopy of [
-    "게임은 계속.",
-    "기록은 이미 완료.",
-    "최근 45초가 남습니다.",
-    "설정은 한 번.",
-    "다음 명장면에서는,",
-  ]) {
-    assert.ok(!appSource.includes(awkwardCopy));
-  }
-
-  assert.ok(!document.includes("게임은 계속. 기록은 이미 완료."));
+  for (const [, anchor] of document.matchAll(/href="#([^"]+)"/g)) assert.ok(document.includes(`id="${anchor}"`));
+  for (const [, source] of document.matchAll(/<img[^>]+src="(\.[^"]+)"/g)) await access(new URL(`../dist/client/${source}`, import.meta.url));
+  assert.doesNotMatch(styles, /--tilt-[xy]|product-stage:hover/);
+  assert.match(styles, /prefers-reduced-motion/);
 });
 
 test("ships a production CSP without development connection permissions", async () => {

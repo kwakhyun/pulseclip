@@ -18,16 +18,15 @@ import { BrandMark } from './components/BrandMark';
 import { ClipLibrary } from './components/ClipLibrary';
 import { Dashboard } from './components/Dashboard';
 import { DiagnosticsPage } from './components/DiagnosticsPage';
-import {
-  ConfirmDialog,
-  OnboardingModal,
-  PlayerModal,
-  SourcePickerModal,
-} from './components/Modals';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { OnboardingModal } from './components/OnboardingModal';
+import { PlayerModal } from './components/PlayerModal';
+import { SourcePickerModal } from './components/SourcePickerModal';
 import { SettingsPage } from './components/SettingsPage';
 import { Sidebar } from './components/Sidebar';
 import { TitleBar } from './components/TitleBar';
 import { ToastHost, type ToastMessage } from './components/ToastHost';
+import { useClipEditor } from './hooks/useClipEditor';
 
 const EMPTY_STORAGE: StorageStats = {
   bytesUsed: 0,
@@ -81,6 +80,7 @@ export default function App() {
   const reportRef = useRef({ phase: '', timestamp: 0 });
   const recoveryStateRef = useRef<CaptureTelemetry['recoveryState']>('none');
   const shutdownStartedRef = useRef(false);
+  const busyRef = useRef(false);
 
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
@@ -96,7 +96,8 @@ export default function App() {
     useState<ShortcutRegistration>({ saveReplay: false, toggleRecording: false });
   const [telemetry, setTelemetry] = useState<CaptureTelemetry>(EMPTY_TELEMETRY);
   const [page, setPage] = useState<NavigationPage>('home');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusyState] = useState(false);
+  const setBusy = (value: boolean) => { busyRef.current = value; setBusyState(value); };
   const [refreshingSources, setRefreshingSources] = useState(false);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
@@ -109,7 +110,7 @@ export default function App() {
   const showToast = useCallback(
     (tone: ToastMessage['tone'], title: string, description?: string) => {
       const id = ++toastId.current;
-      setToasts((current) => [...current.slice(-3), { id, tone, title, description }]);
+      setToasts((current) => [...current.slice(-1), { id, tone, title, description }]);
       window.setTimeout(() => {
         setToasts((current) => current.filter((toast) => toast.id !== id));
       }, 4500);
@@ -136,6 +137,24 @@ export default function App() {
       setRefreshingSources(false);
     }
   }, [showToast]);
+
+  const editor = useClipEditor(async clip => {
+    await refreshLibrary();
+    setSelectedClip(clip);
+    showToast('success', '편집한 클립을 저장했습니다', '원본 영상은 그대로 보존됩니다.');
+  }, error => showToast('error', '클립 편집을 완료하지 못했습니다', messageOf(error)));
+
+  const renameClip = async (clip: Clip, title: string) => {
+    try {
+      await window.pulseClip.renameClip(clip.id, title);
+      await refreshLibrary();
+      showToast('success', '클립 이름을 변경했습니다');
+      return true;
+    } catch (error) {
+      showToast('error', '이름을 변경하지 못했습니다', messageOf(error));
+      return false;
+    }
+  };
 
   const refreshMicrophones = useCallback(async () => {
     try {
@@ -215,7 +234,10 @@ export default function App() {
         setBootstrapError(null);
         const [data, initialSources] = await Promise.all([
           window.pulseClip.bootstrap(),
-          window.pulseClip.listCaptureSources(),
+          window.pulseClip.listCaptureSources().catch(error => {
+            showToast('error', '캡처 소스를 불러오지 못했습니다', messageOf(error));
+            return [] as CaptureSource[];
+          }),
         ]);
         if (disposed) return;
         setBootstrap(data);
@@ -327,7 +349,7 @@ export default function App() {
   };
 
   const toggleBuffer = async () => {
-    if (busy || recording) return;
+    if (busyRef.current || recording) return;
     if (captureActive) {
       setBusy(true);
       try {
@@ -344,7 +366,7 @@ export default function App() {
   };
 
   const toggleRecording = async () => {
-    if (busy) return;
+    if (busyRef.current || editor.editing) return;
     setBusy(true);
     try {
       if (engine.isRecording()) {
@@ -369,7 +391,7 @@ export default function App() {
   };
 
   const saveReplay = async () => {
-    if (busy) return;
+    if (busyRef.current) return;
     setBusy(true);
     try {
       const clip = await engine.saveReplay();
@@ -391,7 +413,7 @@ export default function App() {
   const shutdown = () => {
     if (shutdownStartedRef.current) return;
     shutdownStartedRef.current = true;
-    void engine.stop()
+    void editor.cancel().then(() => engine.stop())
       .catch(() => undefined)
       .then(() => window.pulseClip.completeShutdown())
       .catch(() => undefined);
@@ -432,7 +454,7 @@ export default function App() {
   };
 
   const selectSource = async (source: CaptureSource) => {
-    if (!settings || recording) return;
+    if (!settings || recording || busyRef.current || editor.editing) return;
     setSourcePickerOpen(false);
     setBusy(true);
     const wasActive = engine.isActive();
@@ -457,6 +479,7 @@ export default function App() {
     source: CaptureSource,
     patch: Partial<AppSettings>,
   ) => {
+    if (busyRef.current) return;
     setBusy(true);
     try {
       const result = await window.pulseClip.updateSettings(patch);
@@ -472,7 +495,7 @@ export default function App() {
   };
 
   const saveSettings = async (draft: AppSettings) => {
-    if (recording) return;
+    if (recording || busyRef.current || editor.editing) return;
     setBusy(true);
     const wasActive = engine.isActive();
     try {
@@ -482,6 +505,7 @@ export default function App() {
       setSettingsDirty(false);
       setShortcutRegistration(result.shortcutRegistration);
       await refreshMicrophones();
+      await refreshLibrary();
       const source = findStoredSource(sources, result.settings);
       if (wasActive && source) await engine.start(source, result.settings);
       showToast('success', '설정을 저장했습니다');
@@ -493,7 +517,8 @@ export default function App() {
   };
 
   const chooseOutputFolder = async () => {
-    if (!settings || recording) return;
+    if (!settings || recording || busyRef.current || editor.editing) return;
+    setBusy(true);
     try {
       const folder = await window.pulseClip.chooseOutputFolder();
       if (!folder) return;
@@ -502,6 +527,8 @@ export default function App() {
       showToast('success', '저장 폴더를 변경했습니다', folder);
     } catch (error) {
       showToast('error', '저장 폴더를 변경하지 못했습니다', messageOf(error));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -510,10 +537,7 @@ export default function App() {
       const updated = await window.pulseClip.setClipFavorite(clip.id, favorite);
       setClips((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       setSelectedClip((current) => (current?.id === updated.id ? updated : current));
-      setStorage((current) => ({
-        ...current,
-        favoriteCount: Math.max(0, current.favoriteCount + (favorite ? 1 : -1)),
-      }));
+      await refreshLibrary();
     } catch (error) {
       showToast('error', '즐겨찾기를 변경하지 못했습니다', messageOf(error));
     }
@@ -639,6 +663,9 @@ export default function App() {
         {page === 'clips' && (
           <ClipLibrary
             clips={clips}
+            replayHotkey={settings.hotkeys.saveReplay}
+            onGoHome={() => setPage('home')}
+            onRefresh={() => void refreshLibrary().catch(error => showToast('error', '목록을 새로고치지 못했습니다', messageOf(error)))}
             onOpen={setSelectedClip}
             onFavorite={(clip, favorite) => void setFavorite(clip, favorite)}
             onReveal={(clip) => void revealClip(clip)}
@@ -661,7 +688,7 @@ export default function App() {
             settings={settings}
             microphones={microphones}
             shortcutRegistration={shortcutRegistration}
-            saving={busy}
+            saving={busy || editor.editing}
             captureActive={captureActive}
             recording={recording}
             onSave={(draft) => void saveSettings(draft)}
@@ -688,10 +715,19 @@ export default function App() {
           refreshing={refreshingSources}
           onRefresh={() => void refreshSources()}
           onComplete={(source, patch) => void completeOnboarding(source, patch)}
+          busy={busy}
         />
       )}
       <PlayerModal
         clip={selectedClip}
+        editing={editor.editing}
+        progress={editor.progress}
+        onTrim={(clip, start, end) => {
+          if (recording || busyRef.current) { showToast('info', '녹화와 저장이 끝난 뒤 편집해 주세요'); return; }
+          editor.start(clip, start, end);
+        }}
+        onCancelTrim={() => void editor.cancel()}
+        onRename={renameClip}
         onClose={() => setSelectedClip(null)}
         onFavorite={(clip, favorite) => void setFavorite(clip, favorite)}
         onReveal={(clip) => void revealClip(clip)}

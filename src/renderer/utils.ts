@@ -60,6 +60,7 @@ export function phaseLabel(phase: CaptureTelemetry['phase']): string {
 export function clipKindLabel(kind: Clip['kind']): string {
   if (kind === 'replay') return '리플레이';
   if (kind === 'recovered') return '복구됨';
+  if (kind === 'edited') return '편집';
   return '녹화';
 }
 

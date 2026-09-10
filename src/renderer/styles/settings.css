@@ -1,0 +1,296 @@
+/* Settings */
+.restart-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  margin-top: 8px;
+  border: 1px solid rgba(255, 190, 85, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 190, 85, 0.07);
+  color: #c9a45e;
+  font-size: 9px;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 18px;
+  align-items: start;
+}
+
+.settings-content {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-section {
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 13px;
+  background: #10131a;
+  content-visibility: auto;
+  contain-intrinsic-size: 760px 320px;
+}
+
+.settings-section > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--border-soft);
+  background: #12161e;
+}
+
+.settings-section > header > span {
+  width: 35px;
+  height: 35px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.settings-section h2 { margin: 0 0 3px; font-size: 12px; }
+.settings-section header p { margin: 0; color: #626977; font-size: 8px; }
+
+.settings-section-body {
+  padding: 3px 17px;
+}
+
+.setting-row,
+.toggle-row,
+.range-row {
+  min-height: 67px;
+  border-bottom: 1px solid #1c2029;
+}
+
+.settings-section-body > :last-child { border-bottom: 0; }
+
+.setting-row,
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.setting-row > div:first-child { min-width: 150px; }
+.setting-row strong,
+.setting-row small,
+.toggle-row strong,
+.toggle-row small { display: block; }
+.setting-row strong,
+.toggle-row strong { color: #c0c5ce; font-size: 10px; }
+.setting-row small,
+.toggle-row small { margin-top: 4px; color: #606775; font-size: 8px; line-height: 1.35; }
+
+.setting-control {
+  min-width: 270px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.segmented { width: 270px; }
+.segmented button { flex: 1; padding: 0 8px; }
+
+.setting-control select {
+  width: 270px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #2d323e;
+  border-radius: 8px;
+  outline: 0;
+  background: #151922;
+  color: #b7bcc6;
+  font-size: 9px;
+}
+
+.toggle-row {
+  justify-content: flex-start;
+}
+
+.toggle-row > div { flex: 1; }
+
+.toggle-row-icon {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #191d26;
+  color: #767d8a;
+}
+
+.switch {
+  position: relative;
+  width: 38px;
+  height: 21px;
+  padding: 0;
+  border: 1px solid #3b414d;
+  border-radius: 12px;
+  background: #252a34;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.switch span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #7b8290;
+  transition: 160ms ease;
+}
+
+.switch.on {
+  border-color: var(--coral);
+  background: var(--coral);
+}
+
+.switch.on span {
+  left: 20px;
+  background: white;
+}
+
+.range-row {
+  padding: 14px 0;
+}
+
+.range-label,
+.range-bounds {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.range-label strong { color: #c0c5ce; font-size: 10px; }
+.range-label span { color: var(--coral); font-size: 10px; font-weight: 750; }
+
+input[type="range"] {
+  width: 100%;
+  height: 4px;
+  margin: 14px 0 7px;
+  appearance: none;
+  border-radius: 4px;
+  outline: 0;
+  background: linear-gradient(90deg, var(--coral) 0 var(--range-progress), #292e38 var(--range-progress) 100%);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  appearance: none;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--coral);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.range-bounds { color: #505765; font-size: 7px; }
+
+.hotkey-input {
+  width: 270px;
+  height: 36px;
+  padding: 0 9px;
+  border: 1px solid #2e3440;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #151922;
+  color: #747c89;
+}
+
+.hotkey-input input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #d3d6dc;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.hotkey-input span { color: var(--green); font-size: 8px; }
+.hotkey-input.invalid { border-color: rgba(255, 99, 88, 0.35); }
+.hotkey-input.invalid span { color: var(--coral); }
+
+.folder-picker {
+  width: 370px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #2d323e;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #151922;
+  color: #757c89;
+  cursor: pointer;
+}
+
+.folder-picker span {
+  flex: 1;
+  overflow: hidden;
+  color: #aab0ba;
+  font-size: 8px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-picker em { color: var(--coral); font-size: 8px; font-style: normal; }
+
+.privacy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px;
+  margin: 12px 0;
+  border: 1px solid rgba(75, 217, 170, 0.13);
+  border-radius: 8px;
+  background: rgba(75, 217, 170, 0.045);
+  color: var(--green);
+}
+
+.privacy-note p { margin: 0; color: #6e7c7b; font-size: 8px; line-height: 1.5; }
+.privacy-note strong { color: #acd9ca; }
+
+.settings-summary {
+  position: sticky;
+  top: 26px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 80% 0%, rgba(255, 99, 88, 0.09), transparent 45%),
+    #12151d;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.18);
+}
+
+.summary-icon {
+  width: 45px;
+  height: 45px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+  border-radius: 12px;
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.settings-summary > small { color: #646b78; font-size: 8px; }
+.settings-summary h3 { margin: 5px 0 18px; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.settings-summary dl { margin: 0 0 18px; }
+.settings-summary dl div { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #222630; font-size: 9px; }
+.settings-summary dt { color: #686f7c; }
+.settings-summary dd { margin: 0; color: #b3b8c2; }
+.save-settings { width: 100%; }
+.summary-warning { margin: 10px 0 0; color: #a97a67; font-size: 8px; line-height: 1.45; text-align: center; }

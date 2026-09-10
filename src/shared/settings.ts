@@ -1,4 +1,4 @@
-import type { AppSettings, CaptureResolution } from './types';
+import type { AppSettings, CaptureResolution, HotkeySettings } from './types';
 
 export const SETTINGS_SCHEMA_VERSION = 1 as const;
 
@@ -22,6 +22,7 @@ export function createDefaultSettings(outputFolder = ''): AppSettings {
     minimizeToTray: true,
     showNotifications: true,
     storageLimitGb: 20,
+    autoCleanup: true,
     outputFolder,
     hotkeys: {
       saveReplay: 'F8',
@@ -67,6 +68,17 @@ export function sanitizeShortcut(value: unknown, fallback: string): string {
   const shortcut = stringValue(value, fallback, 64);
   const accelerator = /^(?:(?:Alt|Shift|Control|Ctrl|Command|CommandOrControl|Super|Meta)\+)*(?:F(?:[1-9]|1[0-2])|[A-Z0-9])$/i;
   return accelerator.test(shortcut) ? shortcut : fallback;
+}
+
+export function hotkeyProblem(hotkeys: HotkeySettings): string | null {
+  const canonical = (value: string) => value.toLowerCase().replace(/commandorcontrol|ctrl/g, 'control').replace(/super|meta/g, 'command').split('+').sort().join('+');
+  if (Object.values(hotkeys).some(value => typeof value !== 'string' || sanitizeShortcut(value, '') === '' || new Set(canonical(value).split('+')).size !== value.split('+').length)) {
+    return '단축키는 F1~F12 또는 Control+Shift+K처럼 입력해 주세요.';
+  }
+  if (canonical(hotkeys.saveReplay) === canonical(hotkeys.toggleRecording)) {
+    return '리플레이와 녹화에 서로 다른 단축키를 지정해 주세요.';
+  }
+  return null;
 }
 
 export function sanitizeSettings(
@@ -140,6 +152,7 @@ export function sanitizeSettings(
       1,
       500,
     ),
+    autoCleanup: booleanValue(input.autoCleanup, defaults.autoCleanup),
     outputFolder: stringValue(input.outputFolder, defaults.outputFolder, 1024),
     hotkeys: {
       saveReplay: sanitizeShortcut(hotkeys.saveReplay, defaults.hotkeys.saveReplay),

@@ -16,6 +16,16 @@ afterEach(async () => {
 });
 
 describe('SettingsStore persistence', () => {
+  it('preserves concurrent patches and folder changes in durable storage', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-settings-'));
+    temporaryDirectories.push(directory);
+    const filePath = path.join(directory, 'settings.json');
+    const store = new SettingsStore(filePath, path.join(directory, 'clips'), new Logger(directory));
+    await store.load();
+    await Promise.all([store.update({ fps: 30 }), store.update({ replaySeconds: 120 }), store.setOutputFolder(path.join(directory, 'new-clips'))]);
+    expect(store.get()).toMatchObject({ fps: 30, replaySeconds: 120, outputFolder: path.join(directory, 'new-clips') });
+    expect(JSON.parse(await readFile(filePath, 'utf8'))).toEqual(store.get());
+  });
   it('preserves malformed settings before restoring safe defaults', async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-settings-'));
     temporaryDirectories.push(directory);

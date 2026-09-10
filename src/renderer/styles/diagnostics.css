@@ -1,0 +1,327 @@
+/* Diagnostics */
+.diagnostics-page {
+  max-width: 1260px;
+}
+
+.diagnostics-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.diagnostics-header h1 {
+  margin: 8px 0 8px;
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: -0.045em;
+}
+
+.diagnostics-header p {
+  margin: 0;
+  color: #9198a6;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.diagnostics-actions {
+  display: flex;
+  gap: 9px;
+  padding-top: 7px;
+}
+
+.diagnostics-actions .button {
+  min-width: 132px;
+}
+
+.diagnostics-overview {
+  min-height: 126px;
+  padding: 24px;
+  border: 1px solid #2a303b;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  background:
+    radial-gradient(circle at 88% 45%, rgba(75, 217, 170, 0.08), transparent 24%),
+    linear-gradient(135deg, #141923, #10131a);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+}
+
+.diagnostics-overview.status-warning {
+  background:
+    radial-gradient(circle at 88% 45%, rgba(255, 190, 85, 0.09), transparent 24%),
+    linear-gradient(135deg, #171920, #111319);
+}
+
+.diagnostics-overview.status-fail {
+  background:
+    radial-gradient(circle at 88% 45%, rgba(255, 99, 88, 0.1), transparent 24%),
+    linear-gradient(135deg, #19161d, #111319);
+}
+
+.diagnostics-overview-icon {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.diagnostics-overview.status-warning .diagnostics-overview-icon {
+  background: rgba(255, 190, 85, 0.12);
+  color: #ffbe55;
+}
+
+.diagnostics-overview.status-fail .diagnostics-overview-icon {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.diagnostics-overview > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.diagnostics-overview small {
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.diagnostics-overview.status-warning small { color: #ffbe55; }
+.diagnostics-overview.status-fail small { color: var(--coral); }
+
+.diagnostics-overview h2 {
+  margin: 5px 0 5px;
+  font-size: 19px;
+  letter-spacing: -0.025em;
+}
+
+.diagnostics-overview p {
+  margin: 0;
+  color: #89919f;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.diagnostics-overview time {
+  align-self: flex-start;
+  color: #69717f;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.75fr);
+  align-items: start;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.diagnostics-panel {
+  overflow: hidden;
+  border: 1px solid #272d38;
+  border-radius: 13px;
+  background: #11151d;
+}
+
+.diagnostics-panel > header {
+  min-height: 58px;
+  padding: 0 18px;
+  border-bottom: 1px solid #232833;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diagnostics-panel > header > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #8f97a5;
+}
+
+.diagnostics-panel > header h2 {
+  margin: 0;
+  color: #d1d5dd;
+  font-size: 13px;
+}
+
+.diagnostics-panel > header > span {
+  color: #6f7785;
+  font-size: 10px;
+}
+
+.diagnostic-check-list {
+  min-height: 370px;
+}
+
+.diagnostic-check {
+  min-height: 78px;
+  padding: 15px 18px;
+  border-bottom: 1px solid #20252f;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.diagnostic-check:last-child { border-bottom: 0; }
+.diagnostic-check > span { margin-top: 2px; color: var(--green); }
+.diagnostic-check.status-warning > span { color: #ffbe55; }
+.diagnostic-check.status-fail > span { color: var(--coral); }
+.diagnostic-check > div { flex: 1; min-width: 0; }
+
+.diagnostic-check > div > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diagnostic-check h3 {
+  margin: 0;
+  color: #c9cdd6;
+  font-size: 12px;
+}
+
+.diagnostic-check em {
+  color: var(--green);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.diagnostic-check.status-warning em { color: #ffbe55; }
+.diagnostic-check.status-fail em { color: var(--coral); }
+
+.diagnostic-check p {
+  margin: 5px 0 0;
+  color: #858d9b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.diagnostic-check small {
+  display: block;
+  margin-top: 5px;
+  color: #69717f;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.diagnostics-empty {
+  min-height: 370px;
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #59616e;
+  text-align: center;
+}
+
+.diagnostics-empty strong {
+  margin-top: 13px;
+  color: #aab0ba;
+  font-size: 12px;
+}
+
+.diagnostics-empty p {
+  max-width: 330px;
+  margin: 6px 0 0;
+  color: #747c89;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.diagnostics-side {
+  display: grid;
+  gap: 16px;
+}
+
+.disk-health-card,
+.system-card {
+  padding-bottom: 18px;
+}
+
+.health-pill {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green) !important;
+  font-weight: 800;
+}
+
+.health-pill.health-low {
+  background: rgba(255, 190, 85, 0.12);
+  color: #ffbe55 !important;
+}
+
+.health-pill.health-critical,
+.health-pill.health-unknown {
+  background: var(--coral-soft);
+  color: var(--coral) !important;
+}
+
+.disk-free-value {
+  display: block;
+  margin: 20px 18px 4px;
+  font-size: 24px;
+  letter-spacing: -0.035em;
+}
+
+.disk-health-card > p {
+  margin: 0 18px;
+  color: #7f8795;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.disk-capacity-track {
+  height: 7px;
+  margin: 17px 18px 15px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #242a34;
+}
+
+.disk-capacity-track > span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), #69bfff);
+}
+
+.disk-health-details,
+.system-card dl {
+  margin: 0 18px;
+}
+
+.disk-health-details > div,
+.system-card dl > div {
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #20252e;
+  font-size: 10px;
+}
+
+.disk-health-details > div:last-child,
+.system-card dl > div:last-child { border-bottom: 0; }
+.disk-health-details dt,
+.system-card dt { color: #737b89; }
+.disk-health-details dd,
+.system-card dd { margin: 0; color: #afb4be; text-align: right; }
+.system-card dl { margin-top: 12px; }
+.diagnostics-muted { margin: 18px; color: #737b89; font-size: 11px; line-height: 1.5; }

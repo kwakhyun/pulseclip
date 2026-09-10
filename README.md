@@ -1,276 +1,156 @@
 <div align="center">
-  <img src="assets/brand/pulseclip-icon-master.png" width="112" alt="PulseClip 아이콘" />
+  <img src="assets/brand/pulseclip-icon-master.png" width="96" alt="PulseClip 아이콘" />
   <h1>PulseClip</h1>
   <p><strong>플레이에 집중하세요. 명장면은 F8로 남기세요.</strong></p>
-  <p>계정 가입이나 클라우드 업로드 없이, 바로 전 플레이를 내 PC에 저장하는 무료 Windows 게임 녹화 앱</p>
-
+  <p>리플레이를 미리 켜두고, 최근 플레이를 내 PC에 MP4로 저장하는 무료 Windows 게임 녹화 앱</p>
   <p>
-    <a href="https://github.com/kwakhyun/pulseclip/releases/latest"><img src="https://img.shields.io/github/v/release/kwakhyun/pulseclip?include_prereleases&amp;label=release" alt="GitHub Release" /></a>
-    <a href="https://github.com/kwakhyun/pulseclip/actions/workflows/ci.yml"><img src="https://github.com/kwakhyun/pulseclip/actions/workflows/ci.yml/badge.svg?branch=main" alt="Quality checks" /></a>
-    <a href="LICENSE"><img src="https://img.shields.io/github/license/kwakhyun/pulseclip" alt="MIT License" /></a>
-    <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?logo=windows11&amp;logoColor=white" alt="Windows 10/11" />
+    <a href="https://github.com/kwakhyun/pulseclip/releases/latest"><img src="https://img.shields.io/github/v/release/kwakhyun/pulseclip?label=release" alt="최신 공개 릴리스" /></a>
+    <a href="https://github.com/kwakhyun/pulseclip/actions/workflows/ci.yml"><img src="https://github.com/kwakhyun/pulseclip/actions/workflows/ci.yml/badge.svg?branch=main" alt="품질 검사" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/kwakhyun/pulseclip" alt="MIT 라이선스" /></a>
   </p>
-
   <p>
-    <a href="https://kwakhyun.github.io/pulseclip/"><strong>공식 웹사이트</strong></a>
-    · <a href="https://github.com/kwakhyun/pulseclip/releases/latest"><strong>Windows 다운로드</strong></a>
-    · <a href="docs/PRODUCT.md">제품 기획</a>
-    · <a href="docs/ARCHITECTURE.md">아키텍처</a>
-    · <a href="docs/FEATURE_ROADMAP.md">로드맵</a>
-    · <a href="PRIVACY.md">개인정보 처리방침</a>
+    <a href="https://kwakhyun.github.io/pulseclip/"><strong>공식 웹사이트</strong></a> ·
+    <a href="https://github.com/kwakhyun/pulseclip/releases/latest"><strong>Windows 다운로드</strong></a> ·
+    <a href="docs/FEATURE_ROADMAP.md">로드맵</a> ·
+    <a href="PRIVACY.md">개인정보 처리방침</a>
   </p>
 </div>
 
-![NTE의 보트 장면을 캡처 소스로 선택한 PulseClip 홈 화면](landing/public/assets/pulseclip-app-home-nte.png)
+## 다운로드와 버전
 
-## 프로젝트 소개
-
-PulseClip은 게임 중 녹화를 미처 시작하지 못해도 `F8`을 누르면 바로 전 45초를 MP4로 남길 수 있는 로컬 우선 데스크톱 앱입니다. 복잡한 방송 도구를 학습하지 않아도 화면과 오디오를 한 번 설정한 뒤 즉시 리플레이와 일반 녹화를 함께 사용할 수 있도록 설계했습니다.
-
-단순한 UI 프로토타입이 아니라 제품 기획, Electron 데스크톱 앱, 미디어 파이프라인, 장애 복구, Windows 설치 파일, SEO 랜딩 페이지와 CI/CD까지 실제 배포 흐름을 end-to-end로 구현한 프로젝트입니다.
-
-| 구분 | 내용 |
-| --- | --- |
-| 해결할 문제 | 녹화를 켜지 않아 명장면을 놓치는 문제, 복잡한 설정, 장시간 녹화의 메모리·저장 공간 부담 |
-| 핵심 사용자 | 별도 방송 환경 없이 플레이를 빠르게 기록하고 싶은 Windows 게이머 |
-| 핵심 경험 | 리플레이를 켜두고 장면이 지나간 뒤 `F8` → 바로 전 45초를 로컬 MP4로 저장 |
-| 제품 원칙 | Replay-first · Local-first · Reliability-first |
-| 구현 범위 | 제품 전략, UI/UX, 캡처·인코딩, 파일 복구, 보안 경계, 패키징, 랜딩 페이지, 자동 배포 |
-| 현재 상태 | `v0.1.3` 공개 베타 · Windows 10 22H2 이상 및 Windows 11 · x64/Arm64 |
-
-## 문제 정의와 제품 전략
-
-기존 녹화 도구에서 반복되는 불편을 다음과 같이 정의했습니다.
-
-- 결정적인 순간이 지나간 뒤에야 녹화를 켜지 않았다는 사실을 알게 됩니다.
-- 방송용 도구는 설정 항목이 많아 단순한 클립 저장에도 학습 비용이 큽니다.
-- 장시간 영상을 메모리에 쌓거나 화면을 중복 인코딩하면 게임 성능에 부담을 줍니다.
-- 녹화 파일의 업로드 여부와 저장 공간 정책이 불명확하면 개인정보를 신뢰하기 어렵습니다.
-- 장치 연결 해제나 저장 공간 부족이 발생하면 긴 녹화 전체를 잃을 수 있습니다.
-
-그래서 기능 수보다 첫 녹화 성공률을 우선했습니다.
-
-| Replay-first | Local-first | Reliability-first |
+| 구분 | 버전 | 이용 방법 |
 | --- | --- | --- |
-| 이미 지나간 장면을 `F8` 한 번으로 저장 | 계정·광고·클라우드 업로드 없이 로컬 보관 | 녹화 전 진단, 저장 공간 보호, 장치 복구, 중단 파일 복구 |
+| 공개 베타 | **v0.1.3** | [GitHub Releases](https://github.com/kwakhyun/pulseclip/releases/tag/v0.1.3)에서 설치 파일 다운로드 |
+| 개발 버전 | **v0.1.4** | 이 저장소의 현재 소스에서 빌드. 아직 공개 설치 파일로 배포하지 않음 |
 
-## 핵심 사용자 흐름
+공식 웹사이트의 다운로드 버튼은 **v0.1.3 공개 베타**로 연결됩니다. 구간 편집 등 아래의 v0.1.4 추가 기능은 해당 다운로드에 포함되지 않습니다.
 
-1. 녹화할 화면 또는 게임 창과 시스템·마이크 오디오를 선택합니다.
-2. 화질과 리플레이 길이를 확인한 뒤 `리플레이 켜기`를 실행합니다.
-3. 명장면이 지나간 뒤 `F8`을 누르면 바로 전 45초가 MP4로 저장됩니다.
-4. 긴 세션은 `F9`로 일반 녹화를 시작하고 종료합니다.
-5. 내 클립에서 검색, 필터, 즐겨찾기, 재생, 파일 위치 열기, 삭제를 수행합니다.
+- 지원 환경: Windows 10 22H2 이상 또는 Windows 11
+- [x64 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/PulseClip-0.1.3-x64-Setup.exe): Intel·AMD PC, 약 115 MB
+- [Arm64 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/PulseClip-0.1.3-arm64-Setup.exe): Windows on Arm PC, 약 109 MB
+- [통합 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/PulseClip-0.1.3-Setup.exe): PC 종류를 모를 때 선택, 약 223 MB
 
-## 제품 화면
+현재 공개 베타에는 코드 서명이 없어 Windows SmartScreen 경고가 나타날 수 있습니다. 공식 릴리스의 [SHA256SUMS.txt](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/SHA256SUMS.txt)로 파일 무결성을 확인할 수 있습니다.
+
+## 처음 사용하기
+
+1. 앱에서 녹화할 화면이나 게임 창을 선택하고, 게임 소리와 마이크를 설정합니다.
+2. **리플레이 켜기**를 누릅니다. 최근 구간을 임시로 보관하며, 기본 길이는 45초입니다.
+3. 명장면이 지나간 뒤 **F8**을 눌러 MP4로 저장합니다. 길이는 15~180초로 변경할 수 있습니다.
+4. 플레이 전체를 녹화하려면 **F9**로 일반 녹화를 시작하고 종료합니다. 리플레이와 함께 사용할 수 있습니다.
+5. **내 클립**에서 재생, 검색, 즐겨찾기와 파일 관리를 이용합니다.
+
+리플레이를 켜기 전의 장면은 저장할 수 없습니다. 켠 지 얼마 되지 않았다면 쌓인 구간만 저장되며, 키프레임 간격에 따라 실제 길이에 차이가 있을 수 있습니다. F8과 F9는 기본 단축키이며 설정에서 바꿀 수 있습니다.
+
+기본 저장 위치는 Windows의 `동영상/PulseClip`입니다. 다른 폴더를 선택할 수 있으며, 계정 가입이나 영상 업로드는 필요하지 않습니다.
+
+![v0.1.3 PulseClip 홈 화면 — NTE 게임 장면을 사용한 녹화 예시](landing/public/assets/pulseclip-app-home-nte.png)
+
+## 공개 베타 v0.1.3 기능
+
+| 기능 | 제공 내용 |
+| --- | --- |
+| 녹화·리플레이 | 화면·창 선택, 15~180초 리플레이, 일반 녹화와 동시 사용 |
+| 영상 설정 | 720p·1080p·1440p·원본 해상도, 30·60 FPS, 4~40 Mbps |
+| 오디오 | Windows 시스템 오디오와 선택한 마이크 소리 혼합 |
+| 클립 보관함 | 검색, 종류 필터, 즐겨찾기, 내장 재생, 파일 위치 열기와 삭제 |
+| 저장 공간 관리 | 한도에 따라 오래된 클립 정리, 즐겨찾기와 녹화 중 파일 보호 |
+| 상태 점검·복구 | 코덱·오디오·폴더·단축키 진단, 여유 공간 검사, 중단 파일 복구 시도 |
+| Windows 연동 | 전역 단축키, 트레이, 시작 프로그램 설정, x64·Arm64 설치 파일 |
+
+PC 성능과 게임에 따라 인코딩 부하가 달라질 수 있습니다. 복구는 남은 파일 상태에 따라 실패할 수 있으며, DRM 등 보호 기능을 우회하지 않습니다.
+
+## 개발 버전 v0.1.4에서 추가한 기능
+
+- **구간 편집:** 시작·종료 시간을 선택해 새 MP4로 저장합니다. 원본 보존, 미리보기, 진행률과 취소를 지원합니다. 구간에 따라 재인코딩될 수 있습니다.
+- **클립 관리:** 이름 변경, 0.5×~2× 재생, 날짜·용량·길이 정렬, 편집·복구 필터를 제공합니다.
+- **설정:** 성능 우선·균형·선명하게 프리셋, 예상 용량, 자동 정리 선택, 미저장 변경 보호를 추가했습니다.
+- **업데이트 확인:** 사용자가 요청하면 공식 GitHub 릴리스를 확인합니다. 자동 설치 방식은 아닙니다.
+- **안정성:** 녹화 타임스탬프, 동시 저장, 설정 갱신 유실, 원본 보호, 대용량 영상의 범위 읽기를 개선했습니다.
 
 <table>
   <tr>
-    <td width="50%">
-      <img src="artifacts/ui-audit/09-library-after.jpg" alt="PulseClip 클립 라이브러리" />
-      <br />
-      <strong>클립 라이브러리</strong><br />
-      녹화와 리플레이를 한곳에서 검색·필터·관리합니다.
-    </td>
-    <td width="50%">
-      <img src="artifacts/ui-audit/07-settings-after.jpg" alt="PulseClip 녹화 설정" />
-      <br />
-      <strong>녹화 설정</strong><br />
-      해상도, FPS, 비트레이트, 오디오와 리플레이 길이를 조정합니다.
-    </td>
+    <td width="50%"><img src="artifacts/verification/after-library-populated.png" alt="v0.1.4 클립 보관함의 필터와 정렬" /><br /><strong>클립 보관함</strong></td>
+    <td width="50%"><img src="artifacts/verification/after-trim.png" alt="v0.1.4 구간 편집과 새 MP4 저장" /><br /><strong>구간 편집</strong></td>
   </tr>
 </table>
 
-<details>
-  <summary><strong>캡처 소스 선택 화면 보기</strong></summary>
-  <br />
-  <img src="artifacts/ui-audit/11-source-picker-after.jpg" alt="PulseClip 캡처 소스 선택 화면" />
-</details>
+위 개발 버전 화면은 합성 영상으로 녹화·편집을 검증한 실제 앱 캡처입니다. 자세한 수정 사항은 [v0.1.4 변경 내역](docs/RELEASE_NOTES_v0.1.4.md), 화면별 결과는 [품질 검토](docs/QUALITY_REVIEW_2026-09-10.md)를 참고하세요.
 
-## 주요 기능
+## 개발 환경
 
-### 녹화와 즉시 리플레이
-
-- 화면·창 선택과 실시간 미리보기
-- H.264·AAC 우선 WebCodecs 인코딩과 VP9·VP8·Opus 호환 폴백
-- 15~180초 순환 리플레이와 `F8` 즉시 저장
-- `F9` 일반 녹화와 append-only fragmented MP4 기록
-- Windows 시스템 오디오와 선택적 마이크 믹싱
-- 720p/1080p/1440p/원본, 30/60 FPS, 4~40 Mbps 설정
-
-### 로컬 클립 관리
-
-- 검색, 유형 필터, 즐겨찾기, 내장 플레이어
-- 파일 위치 열기와 삭제
-- 저장 공간 한도 기반 자동 정리
-- 즐겨찾기·활성 녹화 파일 보호
-
-### 녹화 신뢰성
-
-- 코덱, 오디오, 저장 폴더, 단축키 상태를 확인하는 진단 센터
-- 녹화 전 여유 공간 검사와 임계치 도달 시 안전 종료
-- 캡처 소스·시스템 오디오·마이크 연결 해제 후 복구 시도
-- 중단된 `.part` 파일 복구와 원자적 완료 처리
-- 구조화 로그와 개인정보를 제외한 진단 보고서
-
-### Windows 데스크톱 경험
-
-- 전역 단축키, 시스템 트레이, 시작 프로그램 옵션
-- x64·Arm64 NSIS 설치 프로그램
-- 샌드박스 렌더러와 검증된 최소 IPC 브리지
-- 영상과 오디오를 사용자가 지정한 로컬 폴더에만 저장
-
-## 핵심 기술 설계
-
-### 한 번 인코딩하고 두 가지 녹화 경험 제공
-
-즉시 리플레이와 일반 녹화를 별도로 인코딩하지 않습니다. 캡처 트랙을 WebCodecs로 한 번만 인코딩한 뒤 동일한 패킷을 리플레이 링 버퍼와 일반 녹화 스트림에 전달합니다.
-
-```mermaid
-flowchart LR
-  A[화면·창·오디오 캡처] --> B[WebCodecs 1회 인코딩]
-  B --> C[리플레이 링 버퍼]
-  B --> D[일반 녹화 fMP4 스트림]
-  C -->|F8| E[키프레임 기준 리먹싱]
-  D --> F[디스크 순차 기록]
-  E --> G[로컬 MP4 보관함]
-  F --> G
-  H[Electron 메인 프로세스] --> I[파일·단축키·트레이·권한 IPC]
-  I --> G
-```
-
-- 리플레이 링은 설정 길이와 키프레임 여유분에 필요한 인코딩 패킷만 보관합니다.
-- `F8`을 누르면 목표 시점 이전의 가장 가까운 키프레임부터 타임스탬프를 다시 맞춰 MP4로 리먹싱합니다.
-- 일반 녹화는 전체 영상을 RAM에 쌓지 않고 fragmented MP4를 디스크에 순차 기록합니다.
-- 두 경로가 하나의 인코딩 결과를 공유해 중복 인코딩과 불필요한 메모리 증가를 피합니다.
-
-### 실패를 전제로 한 저장 구조
-
-| 위험 | 설계 대응 |
-| --- | --- |
-| 앱 또는 PC의 예기치 않은 종료 | 활성 파일을 `.part`로 기록하고 다음 실행에서 복구 시도 |
-| 저장 공간 고갈 | 시작 전 여유 공간 확인, 예약 공간 경계에서 안전 종료 |
-| 소스·오디오 장치 연결 해제 | 안정적인 ID와 이름을 이용한 재탐색, 기본 장치 폴백 |
-| 손상된 설정 파일 | 스키마 검증, 범위 보정, 원자적 설정 저장 |
-| 임의 파일·URL 접근 | 등록된 clip ID와 사용자가 승인한 폴더만 IPC에서 허용 |
-
-### 로컬 우선 보안 경계
-
-- Electron 렌더러의 Node 통합을 끄고 샌드박스를 활성화했습니다.
-- 프로덕션 UI는 권한이 큰 `file://` 대신 경로 순회를 차단하는 전용 `pulseclip://app` 프로토콜로 제공합니다.
-- 패키징 시 ASAR 무결성 검증을 켜고 Node 실행·환경 변수·디버거 우회 경로를 Electron 퓨즈로 차단합니다.
-- preload에는 기능별 최소 타입 API만 노출합니다.
-- 모든 IPC 발신 프레임과 인자를 검증합니다.
-- 외부 탐색과 임의 URL 로드를 차단합니다.
-- 캡처 요청 토큰은 한 번만 사용할 수 있고 10초 후 만료됩니다.
-- 기본 설정에서 녹화 파일을 외부 서버로 전송하지 않습니다.
-
-자세한 내용은 [아키텍처 문서](docs/ARCHITECTURE.md)와 [보안 원칙](docs/SECURITY.md)에서 확인할 수 있습니다.
-
-## 기술 스택
-
-| 영역 | 기술 |
-| --- | --- |
-| Desktop | Electron 44, electron-builder, NSIS |
-| Frontend | React 19, TypeScript 7, Vite 8 |
-| Media | WebCodecs, MediaBunny, MediaStream APIs |
-| State & Contract | 타입 기반 IPC 계약, 설정 스키마 검증 |
-| Quality | Vitest, TypeScript typecheck, npm audit |
-| Delivery | GitHub Actions, GitHub Releases, GitHub Pages |
-
-## 품질과 배포 자동화
-
-`main` 브랜치와 Pull Request에서 데스크톱 앱과 랜딩 페이지를 각각 검증합니다.
-
-- Windows 러너: 타입 검사 → 단위 테스트 → 프로덕션 빌드 → x64 패키징 → Electron 보안 퓨즈 검증 → 운영 의존성 감사
-- Ubuntu 러너: 랜딩 페이지 빌드 → 호스팅 번들 테스트 → 운영 의존성 감사
-- `main`의 랜딩 페이지 변경은 GitHub Pages에 자동 배포
-- Windows 설치 파일은 x64·Arm64 NSIS 패키지로 생성
-
-```powershell
-npm run verify
-```
-
-위 명령은 타입 검사, Vitest 단위 테스트, Electron 메인·React 렌더러 프로덕션 빌드를 한 번에 실행합니다.
-
-## 설치와 실행
-
-### 일반 사용자
-
-[최신 Windows 설치 파일](https://github.com/kwakhyun/pulseclip/releases/latest)을 내려받아 설치하세요.
-
-- 지원 환경: Windows 10 22H2 이상, Windows 11
-- 지원 아키텍처: x64, Arm64
-- 기본 저장 위치: Windows `동영상/PulseClip`
-- 로그 위치: Electron `userData/logs/pulseclip.log`
-
-> [!IMPORTANT]
-> `v0.1.3` 공개 베타는 아직 Authenticode로 서명되지 않았습니다. Windows SmartScreen 경고가 나타날 수 있으며, Release의 `SHA256SUMS.txt`로 파일 무결성을 확인할 수 있습니다.
-
-### 개발 환경
-
-Node.js 22.12 이상이 필요합니다.
+Node.js **22.12 이상**과 Windows가 필요합니다. 랜딩페이지는 다른 운영체제에서도 개발할 수 있습니다.
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-검증과 패키징:
+검증과 패키징은 다음 명령으로 실행합니다.
 
-```powershell
-npm run verify
-npm run package
-npm run dist
-```
+| 명령 | 내용 |
+| --- | --- |
+| `npm run verify` | 타입·미사용 코드 검사, 단위 테스트, 메인·렌더러 프로덕션 빌드 |
+| `npm run test:desktop` | 빌드된 앱의 녹화·리플레이·편집·설정 통합 검사. 먼저 `npm run verify` 실행 |
+| `npm run package` | 현재 호스트 아키텍처의 설치 없이 실행 가능한 앱 생성 |
+| `npm run dist` | x64·Arm64 설치 파일과 체크섬 등 릴리스 산출물 생성 |
 
-- `npm run package`: 설치 없이 실행 가능한 x64 앱을 `release/win-unpacked/`에 생성
-- `npm run dist`: x64·Arm64 NSIS 설치 프로그램을 `release/`에 생성
+설치 파일은 `release/`에 생성됩니다. 데스크톱 통합 검사는 별도의 임시 폴더와 합성 화면·오디오를 사용하며, 사용자 화면·마이크를 녹화하지 않습니다.
 
-## 저장소 구조
+현재 v0.1.4는 단위 테스트 **65개**, 실제 Electron의 녹화·동시 리플레이·구간 편집·취소·재생 시나리오, Windows x64 패키징을 로컬에서 검증했습니다. 실제 게임, 여러 GPU와 오디오 장치, 장시간 녹화, Arm64 실행은 별도로 검증해야 합니다.
+
+## 구조와 미디어 처리
 
 ```text
-src/main       파일, 트레이, 단축키, 권한, 보안 IPC
-src/preload    샌드박스 렌더러용 최소 타입 브리지
-src/renderer   React UI와 단일 인코딩 캡처 엔진
-src/shared     공용 타입, IPC 계약, 설정 검증
-docs           제품, 아키텍처, 보안, 릴리스 문서
-landing        SEO 프리렌더 랜딩 페이지와 GitHub Pages 빌드
-artifacts      UI 감사 전후 화면과 브랜드 산출물
+src/main       파일 저장, 복구, 업데이트 조회, 트레이, 단축키, IPC
+src/preload    샌드박스 렌더러에 노출하는 최소 API
+src/renderer   components / hooks / capture / styles
+src/shared     공용 타입, IPC 계약, 설정·입력 검증
+scripts        빌드·패키징 검사와 데스크톱 통합 검사
+docs           제품, 구조, 보안, 릴리스, 검토 문서
+landing        한국어 랜딩페이지와 정적 호스팅 빌드
+artifacts      실제 검증 화면과 디자인 참고 자료
 ```
+
+Electron 44, React 19, TypeScript 7, Vite 8, MediaBunny를 사용합니다. 캡처 영상과 오디오를 한 번 인코딩하고, 같은 패킷을 리플레이 버퍼와 일반 녹화에 전달합니다.
+
+```mermaid
+flowchart LR
+  A[화면·창·오디오] --> B[WebCodecs 인코딩]
+  B --> C[리플레이 버퍼]
+  B --> D[일반 녹화 스트림]
+  C -->|F8| E[MP4 저장]
+  D --> E
+  E --> F[로컬 클립 보관함]
+```
+
+일반 녹화는 전체 영상을 메모리에 쌓지 않고 fragmented MP4로 순차 기록합니다. 진행 중 파일은 `.part`로 보관하고, 완료하면 이름을 바꿉니다. 렌더러의 Node 통합은 끄고, 검증된 IPC와 전용 미디어 프로토콜을 통해 파일에 접근합니다.
+
+설정은 Electron `userData` 폴더, 로그는 `app.getPath('logs')/pulseclip.log`에 저장합니다. Windows 기본 경로는 `%APPDATA%/PulseClip`과 그 아래 `logs` 폴더입니다. 자세한 저장·권한 경계는 [아키텍처](docs/ARCHITECTURE.md)와 [개인정보 처리방침](PRIVACY.md)에 설명되어 있습니다.
+
+## 랜딩페이지와 배포
+
+[랜딩페이지 개발 안내](landing/README.md)에 실행과 검증 방법을 정리했습니다. 공개 설치 버전과 다운로드·검색 메타데이터는 `landing/src/release.js`에서 함께 관리합니다. 개발 버전은 루트 `package.json`을 읽으므로 공개 버전과 별도로 표시됩니다.
+
+- `main`과 Pull Request에서 데스크톱과 랜딩페이지 품질 검사를 실행합니다.
+- `main`의 랜딩페이지 변경은 GitHub Pages에 자동 배포합니다.
+- 소스를 푸시하는 것만으로 Windows 설치 파일이 새 릴리스로 공개되지는 않습니다.
 
 ## 프로젝트 문서
 
 | 문서 | 내용 |
 | --- | --- |
-| [제품 기획](docs/PRODUCT.md) | 문제 정의, 핵심 흐름, v1 범위, 품질 목표 |
-| [아키텍처](docs/ARCHITECTURE.md) | 프로세스 경계, 미디어 파이프라인, 저장·복구 구조 |
-| [보안 원칙](docs/SECURITY.md) | 로컬 저장, IPC와 경로 검증, 공개 전 보안 게이트 |
-| [개인정보 처리방침](PRIVACY.md) | 앱의 로컬 데이터, 보관·삭제, GitHub 배포 경계 |
-| [기능 로드맵](docs/FEATURE_ROADMAP.md) | 사용자 가치와 구현 위험을 기준으로 한 P0~P2 우선순위 |
-| [릴리스 가이드](docs/RELEASE.md) | 패키징, 코드 서명, 배포 전 검증 항목 |
-| [UI/UX 감사](artifacts/ui-audit/README.md) | 주요 화면의 문제점, 우선순위, 개선 전후 근거 |
-| [아이콘 시스템](assets/brand/PULSECLIP_ICON.md) | 전용 아이콘 제작 원칙과 플랫폼별 산출물 |
+| [제품 기획](docs/PRODUCT.md) | 사용자 문제와 핵심 흐름 |
+| [아키텍처](docs/ARCHITECTURE.md) | 미디어 처리, 파일 저장, 프로세스 경계 |
+| [보안 원칙](docs/SECURITY.md) · [개인정보 처리방침](PRIVACY.md) | 권한, 로컬 데이터, 네트워크 사용 |
+| [로드맵](docs/FEATURE_ROADMAP.md) | 완료한 기능과 다음 개발 범위 |
+| [릴리스 가이드](docs/RELEASE.md) | 패키징, 서명, 배포 전 검사 |
+| [v0.1.4 변경 내역](docs/RELEASE_NOTES_v0.1.4.md) | 이번 개발 버전의 추가 기능과 수정 사항 |
+| [앱 품질 검토](docs/QUALITY_REVIEW_2026-09-10.md) | 실제 앱의 화면별 검증 결과 |
+| [README·랜딩 검토](docs/LANDING_REVIEW_2026-09-10.md) | 문구·버전 정합성·반응형 개선 결과 |
 
-## 이 프로젝트에서 다룬 역량
-
-- 사용자 문제를 기능 목록이 아닌 핵심 행동과 품질 목표로 번역하는 제품 설계
-- 게임 녹화의 성능·메모리·파일 무결성 제약을 고려한 미디어 파이프라인 설계
-- 장애 복구와 저장 공간 보호를 중심으로 한 신뢰성 엔지니어링
-- Electron 프로세스 경계와 로컬 데이터 원칙을 적용한 데스크톱 보안
-- 실제 사용 흐름을 기준으로 한 UI/UX 감사와 디자인 시스템 정리
-- Windows 패키징, 공개 릴리스, SEO 랜딩 페이지, CI/CD까지 이어지는 제품 배포
-
-## 다음 단계
-
-- 신뢰된 코드 서명과 안전한 자동 업데이트 채널
-- 게임 자동 감지와 게임별 녹화 프로필
-- 재인코딩을 최소화한 로컬 클립 트리머
-- Intel·NVIDIA·AMD 실기기 장시간 테스트 매트릭스
-- 선택적 HDR·HEVC·AV1 성능 모드
-
-PulseClip은 DRM 또는 보호된 콘텐츠의 캡처 우회를 지원하지 않습니다. 상세 우선순위와 완료 기준은 [기능 고도화 로드맵](docs/FEATURE_ROADMAP.md)을 참고하세요.
+게임 자동 감지, 이벤트 기반 자동 하이라이트, 다중 오디오 트랙과 서명 기반 자동 설치 업데이트는 아직 제공하지 않습니다.
 
 ## 라이선스
 
-PulseClip 소스는 [MIT License](LICENSE)로 제공됩니다. 번들되는 오픈소스 구성요소는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에서 확인할 수 있습니다.
+소스는 [MIT 라이선스](LICENSE)로 제공합니다. 번들된 오픈소스 구성요소는 [오픈소스 고지](THIRD_PARTY_NOTICES.md)를 참고하세요.

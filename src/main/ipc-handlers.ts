@@ -27,6 +27,9 @@ import type { Logger } from './logger';
 import { buildDiagnosticReport } from './diagnostics';
 import type { DiskSafetyService } from './disk-safety';
 import { requireBoolean, validateUuid } from './input-validation';
+import { validateTrimRange } from '../shared/trim';
+import { RELEASE_PAGE, UpdateService } from './update-service';
+import { AsyncQueue } from '../shared/async-queue';
 
 interface RegisterIpcOptions {
   window: BrowserWindow;
@@ -65,6 +68,8 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
   } = options;
 
   let lastDiagnosticReport: DiagnosticReport | null = null;
+  const updates = new UpdateService();
+  const storageChanges = new AsyncQueue();
 
   const handlers: Array<[string, (...args: never[]) => unknown]> = [];
   const handle = (
@@ -105,19 +110,21 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
     return prepareCapture(event, validated);
   });
 
-  handle(IPC.updateSettings, async (_event, patch: unknown) => {
+  handle(IPC.updateSettings, (_event, patch: unknown) => storageChanges.run(async () => {
     if (!isRecord(patch)) throw new Error('설정 형식이 올바르지 않습니다.');
     const safePatch = { ...patch } as Partial<AppSettings>;
     delete safePatch.outputFolder;
     delete safePatch.schemaVersion;
+    if (writer.hasActiveSessions()) throw new Error('녹화와 파일 저장이 완료된 뒤 설정을 변경해 주세요.');
     const updated = await settings.update(safePatch);
     applyLoginItemSettings();
     const shortcutRegistration = registerShortcuts();
-    await clips.enforceQuota();
+    await clips.enforceQuota().catch(error => logger.warn('Settings saved, but cleanup failed', { error }));
     return { settings: updated, shortcutRegistration };
-  });
+  }));
 
-  handle(IPC.chooseOutputFolder, async () => {
+  handle(IPC.chooseOutputFolder, () => storageChanges.run(async () => {
+    if (writer.hasActiveSessions()) throw new Error('파일 저장이 완료된 뒤 폴더를 변경해 주세요.');
     const result = await dialog.showOpenDialog(window, {
       title: 'PulseClip 저장 폴더 선택',
       defaultPath: settings.get().outputFolder,
@@ -125,9 +132,32 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
       properties: ['openDirectory', 'createDirectory'],
     });
     if (result.canceled || result.filePaths.length !== 1) return null;
+    if (writer.hasActiveSessions()) throw new Error('파일 저장이 시작되어 폴더를 변경하지 않았습니다.');
     const updated = await settings.setOutputFolder(result.filePaths[0]);
     return updated.outputFolder;
-  });
+  }));
+
+  handle(IPC.checkForUpdates, () => updates.check(app.getVersion()));
+  handle(IPC.openReleasePage, () => shell.openExternal(RELEASE_PAGE));
+  handle(IPC.renameClip, (_event, id: unknown, title: unknown) => clips.rename(validateId(id), cleanText(title, 120)));
+  handle(IPC.beginTrim, (_event, request: unknown) => storageChanges.run(async () => {
+    if (!isRecord(request)) throw new Error('편집 요청이 올바르지 않습니다.');
+    const id = validateId(request.clipId);
+    const release = clips.protect(id);
+    try {
+      const clip = await clips.get(id);
+      if (!clip) throw new Error('원본 클립을 찾을 수 없습니다.');
+      const start = boundedNumber(request.startSeconds, 0, 604800, '시작 시간');
+      const end = boundedNumber(request.endSeconds, 0, 604800, '종료 시간');
+      // Recovered clips can lack duration metadata; the renderer validates actual media duration too.
+      validateTrimRange(start, end, clip.durationMs > 0 ? clip.durationMs / 1000 : end);
+      return await writer.begin({ kind: 'edited', sourceName: clip.sourceName,
+        width: clip.width, height: clip.height, fps: clip.fps, codec: clip.codec }, true, release);
+    } catch (error) {
+      release();
+      throw error;
+    }
+  }));
 
   handle(IPC.listClips, async () => {
     const currentClips = await clips.list();
@@ -208,9 +238,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
     if (result) throw new Error(result);
   });
 
-  handle(IPC.beginFile, (_event, request: unknown) => {
-    return writer.begin(validateBeginFile(request));
-  });
+  handle(IPC.beginFile, (_event, request: unknown) => storageChanges.run(() => writer.begin(validateBeginFile(request))));
 
   handle(IPC.appendFile, (_event, sessionId: unknown, bytes: unknown) => {
     if (!(bytes instanceof ArrayBuffer)) {

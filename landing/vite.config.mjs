@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { description, structuredData } from "./src/release.js";
 
 export default defineConfig(({ command }) => ({
   base: "./",
@@ -23,7 +24,10 @@ export default defineConfig(({ command }) => ({
         const connections = command === "serve"
           ? "'self' ws: http://localhost:5173"
           : "'none'";
-        return html.replace("__PULSECLIP_LANDING_CONNECT_SRC__", connections);
+        return html
+          .replace("__PULSECLIP_LANDING_CONNECT_SRC__", connections)
+          .replaceAll("__PULSECLIP_DESCRIPTION__", description)
+          .replace("__PULSECLIP_STRUCTURED_DATA__", JSON.stringify(structuredData).replaceAll("<", "\\u003c"));
       },
     },
     react(),

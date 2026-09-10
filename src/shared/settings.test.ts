@@ -4,9 +4,15 @@ import {
   resolutionSize,
   sanitizeSettings,
   sanitizeShortcut,
+  hotkeyProblem,
 } from './settings';
 
 describe('settings sanitization', () => {
+  it('detects equivalent shortcuts and duplicate modifiers before registration', () => {
+    expect(hotkeyProblem({ saveReplay: 'Ctrl+Shift+K', toggleRecording: 'Shift+Control+K' })).toBeTruthy();
+    expect(hotkeyProblem({ saveReplay: 'Ctrl+Control+K', toggleRecording: 'F9' })).toBeTruthy();
+    expect(hotkeyProblem({ saveReplay: 'F8', toggleRecording: 'F9' })).toBeNull();
+  });
   it('clamps numeric input and rejects malformed values', () => {
     const defaults = createDefaultSettings('C:\\Clips');
     const result = sanitizeSettings(

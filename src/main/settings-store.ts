@@ -3,12 +3,15 @@ import path from 'node:path';
 import {
   createDefaultSettings,
   sanitizeSettings,
+  hotkeyProblem,
 } from '../shared/settings';
 import type { AppSettings } from '../shared/types';
 import type { Logger } from './logger';
+import { AsyncQueue } from '../shared/async-queue';
 
 export class SettingsStore {
   private value: AppSettings;
+  private readonly writes = new AsyncQueue();
 
   constructor(
     private readonly filePath: string,
@@ -52,6 +55,11 @@ export class SettingsStore {
   }
 
   async update(patch: Partial<AppSettings>): Promise<AppSettings> {
+    const snapshot = structuredClone(patch);
+    return this.writes.run(() => this.applyUpdate(snapshot));
+  }
+
+  private async applyUpdate(patch: Partial<AppSettings>): Promise<AppSettings> {
     const current = this.value;
     const nextInput: Partial<AppSettings> = {
       ...current,
@@ -63,12 +71,20 @@ export class SettingsStore {
       },
     };
     const next = sanitizeSettings(nextInput, current);
+    if (patch.hotkeys) {
+      const problem = hotkeyProblem(nextInput.hotkeys!);
+      if (problem) throw new Error(problem);
+    }
     await this.persist(next);
     this.value = next;
     return this.get();
   }
 
   async setOutputFolder(outputFolder: string): Promise<AppSettings> {
+    return this.writes.run(() => this.applyOutputFolder(outputFolder));
+  }
+
+  private async applyOutputFolder(outputFolder: string): Promise<AppSettings> {
     if (!path.isAbsolute(outputFolder) || outputFolder.includes('\0')) {
       throw new Error('출력 폴더 경로가 올바르지 않습니다.');
     }

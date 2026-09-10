@@ -64,3 +64,22 @@ Videos/PulseClip/
 - 실패한 쓰기 세션은 닫고 `.part`를 보존한다.
 - 다음 실행에서 비어 있지 않은 fragmented MP4를 복구 클립으로 등록한다.
 - 저장 한도 정리는 활성 파일과 즐겨찾기를 건드리지 않는다.
+
+## v0.1.4 구조와 동시성
+
+- `shared/async-queue.ts`: 실패 후에도 다음 작업을 처리하는 직렬 실행 큐. 설정과 사이드카 변경의 갱신 유실을 방지한다.
+- `main/write-session-manager.ts`: `.part`를 배타적으로 예약하고 부분 쓰기를 반복 처리한다. 중복 완료 요청은 같은 작업을 기다린다. 파일 저장 중 저장 폴더 변경은 차단한다.
+- `renderer/capture/LivePacketWriter.ts`: 일반 녹화 패킷 큐. 대기 데이터가 64 MiB를 넘으면 오류를 알리고 녹화를 종료한다.
+- `renderer/capture/IpcAppendSink.ts`: 모든 출력 청크를 8 MiB 이하로 나누어 순서대로 IPC에 전달한다.
+- `main/media-response.ts`: GET/HEAD 및 단일 바이트 범위를 검증하고 필요한 파일 구간을 64 KiB 버퍼로 스트리밍한다. 유효한 부분 요청은 206, 잘못된 범위는 416으로 응답한다.
+- `renderer/capture/trim-clip.ts`: 동일 출처의 `pulseclip://app/media/<clip-id>`를 필요한 범위만 읽어 MP4 구간 편집. 원본 ID를 잠금 처리하고 편집 취소 시 임시 출력을 제거한다. 영상 또는 오디오가 지원되지 않으면 트랙을 조용히 버리지 않고 편집을 실패시킨다.
+- `renderer/hooks/useClipEditor.ts`: 진행률, 취소, 종료 전 정리. `hooks/useDialogFocus.ts`는 중첩 대화상자와 배경 키보드 포커스를 관리한다.
+- `renderer/components`: 소스 선택, 초기 설정, 확인, 플레이어 대화상자를 독립 파일로 분리했다. 클립 카드, 지연 영상 로딩, 목록 정렬도 분리했다.
+- `renderer/styles`: 기본 화면·보관함·설정·진단·대화상자·접근성·공통 추가 제어로 나눴다. `styles.css`는 진입점이다.
+- `main/update-service.ts`: 사용자가 요청할 때 공식 GitHub 안정 릴리스를 조회한다. 네트워크 제한 시간과 중복 요청 병합·5분 캐시를 적용하며 실행 파일 자동 설치는 하지 않는다.
+
+미디어 프레임률은 `MediaStreamVideoTrackSource` 한 곳에서만 조정한다. 변환 단계에서 중복 조정하면 비동기 패딩 프레임이 GOP 경계를 넘어 역순으로 들어갈 수 있어 제거했다. 시작 중 종료, 저장 중 종료와 반복 종료는 진행 중 Promise를 기다려 처리한다.
+
+## 검증
+
+`npm run verify`는 타입·미사용 코드 검사, 단위 테스트, 프로덕션 번들 검증을 수행한다. 이후 `npm run test:desktop`으로 실제 Electron과 동일 출처 미디어 프로토콜·IPC·WebCodecs·MP4 편집을 확인한다. 테스트는 격리된 임시 저장소와 합성 영상/오디오를 사용하며 사용자 화면·마이크·설정·녹화 파일에 접근하지 않는다.

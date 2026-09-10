@@ -34,6 +34,7 @@ import { SettingsStore } from './settings-store';
 import { RendererShutdownCoordinator } from './shutdown-coordinator';
 import { decideWindowCloseAction } from './window-close-policy';
 import { WriteSessionManager } from './write-session-manager';
+import { mediaResponse } from './media-response';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -338,10 +339,14 @@ function isOwnWindowSource(source: { id: string; name: string }): boolean {
 function registerGlobalShortcuts(): ShortcutRegistration {
   globalShortcut.unregisterAll();
   const shortcuts = settingsStore.get().hotkeys;
-  const saveReplay = globalShortcut.register(shortcuts.saveReplay, () => {
+  const register = (accelerator: string, listener: () => void) => {
+    try { return globalShortcut.register(accelerator, listener); }
+    catch (error) { logger.warn('Could not register shortcut', { accelerator, error }); return false; }
+  };
+  const saveReplay = register(shortcuts.saveReplay, () => {
     sendAppEvent('shortcut:save-replay');
   });
-  const toggleRecording = globalShortcut.register(shortcuts.toggleRecording, () => {
+  const toggleRecording = register(shortcuts.toggleRecording, () => {
     sendAppEvent('shortcut:toggle-recording');
   });
   shortcutRegistration = { saveReplay, toggleRecording };
@@ -361,6 +366,16 @@ async function setupProtocolHandlers(): Promise<void> {
   await protocol.handle('pulseclip', async (request) => {
     try {
       const url = new URL(request.url);
+      if (url.hostname === 'media' || (url.hostname === 'app' && url.pathname.startsWith('/media/'))) {
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+          return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
+        }
+        const id = decodeURIComponent(url.pathname.slice(url.hostname === 'media' ? 1 : 7));
+        if (!isUuid(id)) return new Response('Bad request', { status: 400 });
+        const filePath = await clipRepository.resolveMediaPath(id);
+        if (!filePath) return new Response('Not found', { status: 404 });
+        return mediaResponse(filePath, request);
+      }
       if (url.hostname === 'app') {
         if (request.method !== 'GET' && request.method !== 'HEAD') {
           return new Response('Method not allowed', {
@@ -379,16 +394,7 @@ async function setupProtocolHandlers(): Promise<void> {
         });
       }
 
-      if (url.hostname !== 'media') return new Response('Not found', { status: 404 });
-      const id = decodeURIComponent(url.pathname.slice(1));
-      if (!isUuid(id)) {
-        return new Response('Bad request', { status: 400 });
-      }
-      const filePath = await clipRepository.resolveMediaPath(id);
-      if (!filePath) return new Response('Not found', { status: 404 });
-      return net.fetch(pathToFileURL(filePath).toString(), {
-        headers: request.headers,
-      });
+      return new Response('Not found', { status: 404 });
     } catch (error) {
       logger.warn('Protocol request failed', error);
       return new Response('Not found', { status: 404 });

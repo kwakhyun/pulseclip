@@ -1,6 +1,6 @@
 {
   "name": "pulseclip",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "Local-first Windows game recorder with instant replay",
   "author": "PulseClip Contributors",
@@ -15,7 +15,7 @@
     "dev:renderer": "vite",
     "dev:electron": "wait-on tcp:5173 file:dist-electron/main/main.js && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.main.json",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "node scripts/clean-main-build.mjs && tsc -p tsconfig.main.json",
     "build:renderer": "vite build && node scripts/verify-desktop-bundle.mjs",
     "build": "npm run typecheck && npm run build:main && npm run build:renderer",
     "test": "vitest run",
@@ -25,7 +25,8 @@
     "release:artifacts": "node scripts/prepare-release-artifacts.mjs",
     "verify:fuses": "node scripts/verify-electron-fuses.mjs release/win-unpacked/PulseClip.exe",
     "verify:fuses:release": "node scripts/verify-electron-fuses.mjs release/win-unpacked/PulseClip.exe release/win-arm64-unpacked/PulseClip.exe",
-    "verify": "npm run typecheck && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run test && npm run build",
+    "test:desktop": "node scripts/run-desktop-smoke.mjs"
   },
   "dependencies": {
     "lucide-react": "1.37.0",

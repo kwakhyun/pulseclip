@@ -17,6 +17,30 @@ afterEach(async () => {
 });
 
 describe('ClipRepository metadata recovery', () => {
+  it('preserves concurrent metadata edits and protects in-use originals from cleanup and deletion', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-clips-'));
+    temporaryDirectories.push(directory);
+    const filePath = path.join(directory, 'PulseClip_test_Recording.mp4');
+    await writeFile(filePath, Buffer.alloc(4096));
+    const config = { outputFolder: directory, storageLimitGb: 0.000001, autoCleanup: true };
+    const settings = { get: () => config } as unknown as SettingsStore;
+    const repository = new ClipRepository(settings, new Logger(directory));
+    const clip = await repository.registerCompletedFile(filePath, { kind: 'recording', sourceName: 'Test', width: 640, height: 360, fps: 30, codec: 'AVC' }, 3000);
+    await Promise.all([repository.rename(clip.id, '하이라이트'), repository.setFavorite(clip.id, true)]);
+    expect(await repository.get(clip.id)).toMatchObject({ title: '하이라이트', favorite: true });
+    await repository.setFavorite(clip.id, false);
+    const release = repository.protect(clip.id);
+    await repository.enforceQuota();
+    await expect(repository.delete(clip.id)).rejects.toThrow('내보내는 중');
+    expect(await repository.list()).toHaveLength(1);
+    release(); release();
+    config.autoCleanup = false;
+    await repository.enforceQuota();
+    expect(await repository.list()).toHaveLength(1);
+    config.autoCleanup = true;
+    await repository.enforceQuota();
+    expect(await repository.list()).toHaveLength(0);
+  });
   it('persists a replacement UUID so malformed sidecars remain playable and actionable', async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-clips-'));
     temporaryDirectories.push(directory);

@@ -1,6 +1,6 @@
 export type CaptureSourceKind = 'screen' | 'window';
 export type CaptureResolution = 'source' | '720p' | '1080p' | '1440p';
-export type ClipKind = 'recording' | 'replay' | 'recovered';
+export type ClipKind = 'recording' | 'replay' | 'recovered' | 'edited';
 export type NavigationPage = 'home' | 'clips' | 'diagnostics' | 'settings';
 export type DiagnosticStatus = 'pass' | 'warning' | 'fail';
 export type DiskHealth = 'healthy' | 'low' | 'critical' | 'unknown';
@@ -39,6 +39,7 @@ export interface AppSettings {
   minimizeToTray: boolean;
   showNotifications: boolean;
   storageLimitGb: number;
+  autoCleanup: boolean;
   outputFolder: string;
   hotkeys: HotkeySettings;
 }
@@ -151,6 +152,20 @@ export interface BeginFileResult {
   sessionId: string;
 }
 
+export interface TrimFileRequest {
+  clipId: string;
+  startSeconds: number;
+  endSeconds: number;
+}
+
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  available: boolean;
+  publishedAt: string;
+  releaseUrl: string;
+}
+
 export interface FinalizeFileRequest {
   durationMs: number;
 }
@@ -180,6 +195,10 @@ export interface PulseClipApi {
   runDiagnostics(snapshot: RendererDiagnosticSnapshot): Promise<DiagnosticReport>;
   exportDiagnostics(): Promise<string | null>;
   setClipFavorite(id: string, favorite: boolean): Promise<Clip>;
+  renameClip(id: string, title: string): Promise<Clip>;
+  beginTrim(request: TrimFileRequest): Promise<BeginFileResult>;
+  checkForUpdates(): Promise<UpdateInfo>;
+  openReleasePage(): Promise<void>;
   deleteClip(id: string): Promise<{ clips: Clip[]; storage: StorageStats }>;
   revealClip(id: string): Promise<void>;
   openClip(id: string): Promise<void>;
