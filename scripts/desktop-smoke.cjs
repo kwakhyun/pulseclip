@@ -53,12 +53,14 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       const failure = await run('document.querySelector(".toast-error")?.innerText ?? ""');
       if (failure) {
         console.error('Synthetic media:', await run('window.__smokeMedia?.diagnostics() ?? null'));
+        console.error('WebCodecs:', await run('window.__smokeCodecs ?? []'));
         console.error(await run('document.body.innerText'));
         throw new Error(`Desktop action failed: ${failure}`);
       }
       await wait(100);
     }
     console.error('Synthetic media:', await run('window.__smokeMedia?.diagnostics() ?? null'));
+    console.error('WebCodecs:', await run('window.__smokeCodecs ?? []'));
     throw new Error(`Timed out: ${code}`);
   };
   const click = async text => {
@@ -87,6 +89,20 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   if (!baseline) {
     // Exercise the real WebCodecs recorder with synthetic media, never the user's desktop or microphone.
     await run(`(() => {
+      window.__smokeCodecs = [];
+      for (const name of ['VideoEncoder', 'AudioEncoder']) {
+        const NativeEncoder = window[name];
+        window[name] = class extends NativeEncoder {
+          constructor(init) {
+            const record = { name, inputs: 0, outputs: 0, config: null, error: null };
+            super({ output: (chunk, metadata) => { record.outputs++; init.output(chunk, metadata); },
+              error: error => { record.error = error.message; init.error(error); } });
+            this.record = record; window.__smokeCodecs.push(record);
+          }
+          configure(config) { this.record.config = config; return super.configure(config); }
+          encode(...args) { this.record.inputs++; return super.encode(...args); }
+        };
+      }
       const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 360;
       const ctx = canvas.getContext('2d'); let frame = 0;
       const timer = setInterval(() => { ctx.fillStyle = ['#243b53','#334e68','#486581'][Math.floor(frame/30)%3]; ctx.fillRect(0,0,640,360); ctx.fillStyle='#ffffff';ctx.font='28px sans-serif';ctx.fillText('PulseClip media test · ' + frame++,32,190); }, 33);
