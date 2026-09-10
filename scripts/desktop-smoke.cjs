@@ -53,6 +53,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       const failure = await run('document.querySelector(".toast-error")?.innerText ?? ""');
       if (failure) {
         console.error('Synthetic media:', await run('window.__smokeMedia?.diagnostics() ?? null'));
+        console.error(await run('document.body.innerText'));
         throw new Error(`Desktop action failed: ${failure}`);
       }
       await wait(100);
@@ -98,7 +99,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
         const destination = audio.createMediaStreamDestination(); oscillator.connect(gain).connect(destination); oscillator.start();
         destination.stream.getAudioTracks().forEach(track => stream.addTrack(track));
         await audio.resume();
-        window.__smokeMedia = { audio, oscillator, gain, destination, canvas, timer,
+        window.__smokeMedia = { stream, audio, oscillator, gain, destination, canvas, timer,
           diagnostics: () => ({ frames: frame, audioState: audio.state, audioTime: audio.currentTime,
             tracks: stream.getTracks().map(track => ({ kind: track.kind, state: track.readyState, muted: track.muted })) }) };
         return stream;
@@ -106,6 +107,13 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     })()`);
     await click('홈');
     await click('리플레이 준비 켜기');
+    await until('document.querySelector(".live-badge")?.textContent.includes("리플레이 준비됨")', 20000);
+    // A disconnected source must disable recording while recovery reconnects it.
+    await run('window.__smokeMedia.stream.getVideoTracks()[0].dispatchEvent(new Event("ended"))');
+    await until('document.querySelector(".live-badge")?.textContent.includes("장치 복구 중")');
+    assert.ok(await run('document.querySelector(".recording-button").disabled && document.querySelector(".replay-button").disabled'));
+    assert.ok(await run('Boolean(document.querySelector(".capture-notice[role=status]"))'));
+    await fs.writeFile(path.join(output, 'after-recovery.png'), (await window.webContents.capturePage()).toPNG());
     await until('document.querySelector(".live-badge")?.textContent.includes("리플레이 준비됨")', 20000);
     await wait(1800);
     await click('전체 녹화 시작');
@@ -174,7 +182,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     await until('document.querySelector(".inline-error")?.textContent.includes("서로 다른 단축키")');
     assert.ok(await run('document.querySelector(".save-settings").disabled'));
     await click('변경사항 되돌리기');
-    console.log('Desktop media: recording + simultaneous replay, rename, trim, cancel, original preservation, MP4 range/playback, minimum window layout, settings persistence and shortcut validation passed.');
+    console.log('Desktop media: source recovery, recording + simultaneous replay, rename, trim, cancel, original preservation, MP4 range/playback, minimum window layout, settings persistence and shortcut validation passed.');
   }
   console.log('Desktop smoke: bootstrap, navigation, settings, diagnostics passed.');
   app.exit(0);

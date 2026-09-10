@@ -92,6 +92,7 @@ npm run dev
 | --- | --- |
 | `npm run verify` | 타입·미사용 코드 검사, 단위 테스트, 메인·렌더러 프로덕션 빌드 |
 | `npm run test:desktop` | 빌드된 앱의 녹화·리플레이·편집·설정 통합 검사. 먼저 `npm run verify` 실행 |
+| `npm run test:desktop -- --disable-accelerated-video-encode` | GPU 인코딩을 끈 상태의 장치 복구·녹화·편집 통합 검사. CI에서도 실행 |
 | `npm run package` | 현재 호스트 아키텍처의 설치 없이 실행 가능한 앱 생성 |
 | `npm run dist` | x64·Arm64 설치 파일과 체크섬 등 릴리스 산출물 생성 |
 

@@ -65,6 +65,8 @@ export function Dashboard({
 }: DashboardProps) {
   const active = telemetry.phase !== 'idle' && telemetry.phase !== 'error';
   const recording = telemetry.phase === 'recording';
+  const recovering = telemetry.phase === 'recovering';
+  const transitioning = recovering || telemetry.phase === 'starting' || telemetry.phase === 'saving';
   const recent = clips.slice(0, 4);
 
   return (
@@ -72,14 +74,20 @@ export function Dashboard({
       <div className="page-heading">
         <div>
           <span className="eyebrow">GAME CAPTURE STUDIO</span>
-          <h1>{recording ? '플레이를 녹화하고 있습니다' : active ? '좋은 장면이 지나갔나요?' : '플레이를 기록할 준비'}</h1>
-          <p>{recording ? `${settings.hotkeys.toggleRecording}을 다시 누르면 녹화를 저장합니다.` : active ? `${settings.hotkeys.saveReplay}을 눌러 최근 ${settings.replaySeconds}초를 저장하세요.` : '녹화할 화면을 확인하고 리플레이 또는 전체 녹화를 시작하세요.'}</p>
+          <h1>{recovering ? '장치 연결을 복구하고 있습니다' : recording ? '플레이를 녹화하고 있습니다' : active ? '좋은 장면이 지나갔나요?' : '플레이를 기록할 준비'}</h1>
+          <p>{recovering ? '복구가 끝나면 녹화를 계속할 수 있습니다. 리플레이 준비를 끄면 복구를 취소합니다.' : recording ? `${settings.hotkeys.toggleRecording}을 다시 누르면 녹화를 저장합니다.` : active ? `${settings.hotkeys.saveReplay}을 눌러 최근 ${settings.replaySeconds}초를 저장하세요.` : '녹화할 화면을 확인하고 리플레이 또는 전체 녹화를 시작하세요.'}</p>
         </div>
         <div className={`live-badge phase-${telemetry.phase}`}>
           <span />
           {phaseLabel(telemetry.phase)}
         </div>
       </div>
+
+      {(telemetry.error || recovering) && (
+        <p className="capture-notice" role={telemetry.error ? 'alert' : 'status'}>
+          {telemetry.error || telemetry.recoveryMessage}
+        </p>
+      )}
 
       <section className={`capture-hero ${recording ? 'is-recording' : ''}`}>
         <div className="preview-column">
@@ -109,14 +117,14 @@ export function Dashboard({
               type="button"
               className={`record-orb ${recording ? 'recording' : active ? 'ready' : ''}`}
               onClick={onToggleRecording}
-              disabled={busy || !selectedSource}
+              disabled={busy || transitioning || !selectedSource}
               aria-label={recording ? '녹화 종료' : '녹화 시작'}
             >
               <span className="orb-ring" />
               {recording ? <CircleStop size={30} /> : <Radio size={30} />}
             </button>
             <div>
-              <small>{recording ? 'RECORDING' : active ? 'READY TO RECORD' : 'CAPTURE OFF'}</small>
+              <small>{recovering ? 'RECONNECTING' : recording ? 'RECORDING' : active ? 'READY TO RECORD' : 'CAPTURE OFF'}</small>
               <strong>{recording ? formatClock(telemetry.recordingSeconds) : phaseLabel(telemetry.phase)}</strong>
             </div>
           </div>
@@ -126,7 +134,7 @@ export function Dashboard({
               type="button"
               className={`button primary recording-button ${recording ? 'is-recording' : ''}`}
               onClick={onToggleRecording}
-              disabled={busy || !selectedSource}
+              disabled={busy || transitioning || !selectedSource}
               aria-pressed={recording}
             >
               {recording ? <CircleStop size={18} /> : <Radio size={18} />}
@@ -147,7 +155,7 @@ export function Dashboard({
               type="button"
               className="button replay-button"
               onClick={onSaveReplay}
-              disabled={busy || !active || telemetry.bufferSeconds < 1}
+              disabled={busy || transitioning || !active || telemetry.bufferSeconds < 1}
             >
               <RotateCcw size={18} />
               최근 {settings.replaySeconds}초 저장

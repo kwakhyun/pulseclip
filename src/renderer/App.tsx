@@ -787,7 +787,7 @@ async function collectRendererDiagnostics(
         height: 720,
         bitrate: 4_000_000,
         framerate: 60,
-        hardwareAcceleration: 'prefer-hardware',
+        hardwareAcceleration: 'no-preference',
       });
       h264Supported = videoSupport.supported === true;
     } catch {

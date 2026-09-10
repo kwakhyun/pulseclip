@@ -55,9 +55,9 @@ export function buildDiagnosticReport(context: DiagnosticContext): DiagnosticRep
       summary: !context.renderer.webCodecsAvailable
         ? '필수 WebCodecs 비디오 인코더를 사용할 수 없습니다.'
         : context.renderer.h264Supported
-          ? '1080p H.264 실시간 인코딩 구성을 사용할 수 있습니다.'
+          ? '720p · 60 FPS H.264 인코딩 지원을 확인했습니다.'
           : 'H.264를 사용할 수 없어 호환 가능한 VP9 또는 VP8 코덱으로 전환할 수 있습니다.',
-      detail: '실제 하드웨어 경로 선택 여부는 녹화 시작 후 런타임 텔레메트리로 확인합니다.',
+      detail: '브라우저가 하드웨어 또는 소프트웨어 인코더를 선택합니다. 실제 녹화 성능은 해상도와 PC 환경에 따라 달라집니다.',
     },
     {
       id: 'audio-codec',

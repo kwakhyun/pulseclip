@@ -247,7 +247,8 @@ export class ReplayCaptureEngine {
           quality: videoQuality,
           keyFrameInterval: 1,
           latencyMode: 'realtime',
-          hardwareAcceleration: 'prefer-hardware',
+          // Match the capability probe: let Chromium use software when no GPU encoder is available.
+          hardwareAcceleration: 'no-preference',
           contentHint: 'motion',
           sizeChangeBehavior: 'passThrough',
           transform: {
@@ -293,12 +294,18 @@ export class ReplayCaptureEngine {
         hasSystemAudio: Boolean(displayAudioTrack),
         hasMicrophone: Boolean(microphoneTrack),
       });
+      // Track sources initialize their encoders lazily on the first media samples.
+      // Do not announce readiness (or allow a restart) before both tracks are usable.
+      await this.waitUntilMuxReady(5_000);
+      if (this.telemetry.error) throw new Error(this.telemetry.error);
+      if (!this.canMux()) throw new Error('영상 또는 오디오 인코더가 응답하지 않습니다. 장치 연결과 녹화 설정을 확인해 주세요.');
       this.setPhase('buffering');
       this.startTelemetryTimer();
     } catch (error) {
       await this.releaseMediaResources();
+      this.clearPacketRing();
       const message = errorMessage(error);
-      this.patchTelemetry({ error: message });
+      this.patchTelemetry({ error: message, bufferSeconds: 0, bufferBytes: 0 });
       this.setPhase('error');
       throw new Error(message);
     }
@@ -337,6 +344,12 @@ export class ReplayCaptureEngine {
       await this.waitUntilMuxReady(3_000);
     }
     if (!this.canMux() || !this.source || !this.settings) {
+      if (this.telemetry.phase === 'recovering') {
+        throw new Error('장치 연결을 복구하고 있습니다. 복구가 끝난 뒤 다시 시도해 주세요.');
+      }
+      if (this.encoderOutput) {
+        throw new Error('인코더 준비가 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.');
+      }
       throw new Error('먼저 리플레이 준비를 켜 주세요.');
     }
     if (this.manualWriter) return;
@@ -537,7 +550,7 @@ export class ReplayCaptureEngine {
 
   private async waitUntilMuxReady(timeoutMs: number): Promise<void> {
     const startedAt = performance.now();
-    while (!this.canMux() && performance.now() - startedAt < timeoutMs) {
+    while (!this.canMux() && !this.telemetry.error && performance.now() - startedAt < timeoutMs) {
       await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
     }
   }
@@ -638,6 +651,10 @@ export class ReplayCaptureEngine {
   }
 
   private handleFatalError(error: unknown): void {
+    if (this.telemetry.phase === 'starting') {
+      this.patchTelemetry({ error: errorMessage(error) });
+      return;
+    }
     this.scheduleRecovery(errorMessage(error));
   }
 
