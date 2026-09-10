@@ -90,6 +90,7 @@ test("prerenders essential information and the published feature set", async () 
   assert.match(text, /SmartScreen/);
   assert.match(text, /현재 PC의 진단 결과가 아니며/);
   assert.ok(text.includes(`v${RELEASE_VERSION}에서 새로워진 기능`));
+  assert.ok(text.includes('v0.1.3 앱 화면 · NTE 게임 장면을 사용한 녹화 예시'));
   assert.ok(text.includes(`v${RELEASE_VERSION} 공개 베타에 포함되어 있습니다.`));
   assert.doesNotMatch(text, /아직 공개되지|공개 베타에 포함되지|개발 버전에 추가/);
   assert.doesNotMatch(text, /3개 항목 정상|명장면을 놓쳤다면|게임 성능을 방해하지/);

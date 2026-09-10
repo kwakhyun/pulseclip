@@ -253,7 +253,7 @@ function Hero() {
             fetchPriority="high"
           />
         </figure>
-        <p className="product-caption">v{RELEASE_VERSION} 앱 화면 · NTE 게임 장면을 사용한 녹화 예시</p>
+        <p className="product-caption">v0.1.3 앱 화면 · NTE 게임 장면을 사용한 녹화 예시</p>
       </div>
     </section>
   );
