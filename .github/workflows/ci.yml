@@ -26,7 +26,10 @@ jobs:
       - name: Verify desktop app
         run: npm run verify
       - name: Verify Electron recording and editing
-        run: npm run test:desktop -- --disable-accelerated-video-encode
+        run: |
+          npm run test:desktop -- --disable-accelerated-video-encode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:desktop -- --disable-accelerated-video-encode --mono-audio
       - name: Verify Windows package
         run: npx electron-builder --dir --x64
       - name: Verify Electron security fuses

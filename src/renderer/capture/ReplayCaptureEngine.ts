@@ -221,10 +221,11 @@ export class ReplayCaptureEngine {
       if (!this.videoCodec) {
         throw new Error('이 PC에서 사용할 수 있는 영상 인코더를 찾지 못했습니다.');
       }
+      const audioSettings = audioTrack?.getSettings();
       this.audioCodec = audioTrack
         ? await getFirstEncodableAudioCodec(['aac', 'opus'], {
-            numberOfChannels: 2,
-            sampleRate: 48_000,
+            numberOfChannels: audioSettings?.channelCount ?? 2,
+            sampleRate: audioSettings?.sampleRate ?? 48_000,
             quality: audioQuality,
           })
         : null;
@@ -273,7 +274,8 @@ export class ReplayCaptureEngine {
           {
             codec: this.audioCodec,
             quality: audioQuality,
-            transform: { numberOfChannels: 2, sampleRate: 48_000 },
+            // Encode the live track's native format. The offline resampler buffers
+            // five seconds even when the requested format already matches.
             onEncodedPacket: (packet, metadata) =>
               this.handleAudioPacket(packet, metadata),
           },

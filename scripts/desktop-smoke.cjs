@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 
 const root = path.resolve(__dirname, '..');
 const baseline = process.argv.includes('--baseline');
+const monoAudio = process.argv.includes('--mono-audio');
 const output = path.join(root, 'artifacts', 'verification');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -100,7 +101,10 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
             this.record = record; window.__smokeCodecs.push(record);
           }
           configure(config) { this.record.config = config; return super.configure(config); }
-          encode(...args) { this.record.inputs++; return super.encode(...args); }
+          encode(...args) {
+            if (this.record.inputs === 0) this.record.firstInputFrames = args[0].numberOfFrames;
+            this.record.inputs++; return super.encode(...args);
+          }
         };
       }
       const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 360;
@@ -109,10 +113,11 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       navigator.mediaDevices.getDisplayMedia = async () => {
         const stream = canvas.captureStream(30);
         // Keep audio processing independent of physical output devices on CI runners.
-        const audio = new AudioContext({ sampleRate: 48000, sinkId: { type: 'none' } });
+        const audio = new AudioContext({ sampleRate: ${monoAudio ? 44100 : 48000}, sinkId: { type: 'none' } });
         const oscillator = audio.createOscillator();
         const gain = audio.createGain(); gain.gain.value = 0.005;
         const destination = audio.createMediaStreamDestination(); oscillator.connect(gain).connect(destination); oscillator.start();
+        destination.channelCount = ${monoAudio ? 1 : 2};
         destination.stream.getAudioTracks().forEach(track => stream.addTrack(track));
         await audio.resume();
         window.__smokeMedia = { stream, audio, oscillator, gain, destination, canvas, timer,
@@ -124,6 +129,10 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     await click('홈');
     await click('리플레이 준비 켜기');
     await until('document.querySelector(".live-badge")?.textContent.includes("리플레이 준비됨")', 20000);
+    const audioEncoder = await run('window.__smokeCodecs.find(codec => codec.name === "AudioEncoder" && codec.outputs > 0)');
+    assert.equal(audioEncoder.config.sampleRate, monoAudio ? 44100 : 48000);
+    assert.equal(audioEncoder.config.numberOfChannels, monoAudio ? 1 : 2);
+    assert.ok(audioEncoder.firstInputFrames < audioEncoder.config.sampleRate, 'Live audio must reach the encoder without a multi-second resampling buffer');
     // A disconnected source must disable recording while recovery reconnects it.
     await run('window.__smokeMedia.stream.getVideoTracks()[0].dispatchEvent(new Event("ended"))');
     await until('document.querySelector(".live-badge")?.textContent.includes("장치 복구 중")');
