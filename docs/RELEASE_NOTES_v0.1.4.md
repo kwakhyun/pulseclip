@@ -1,6 +1,6 @@
 # PulseClip v0.1.4 — 녹화 안정성과 로컬 편집
 
-작성일: 2026-09-10. 로컬 검증 빌드이며 GitHub 공개 배포는 수행하지 않았다.
+배포일: 2026-09-10. [Windows x64·Arm64 공개 베타 릴리스](https://github.com/kwakhyun/pulseclip/releases/tag/v0.1.4).
 
 ## 추가한 기능
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 import worker from "../worker/index.js";
-import { CHECKSUM_URL, DEVELOPMENT_VERSION, DOWNLOAD_URL, installers, RELEASE_VERSION } from "../src/release.js";
+import { CHECKSUM_URL, DOWNLOAD_URL, installers, RELEASE_VERSION } from "../src/release.js";
 
 test("serves existing static assets without a fallback", async () => {
   const calls = [];
@@ -82,15 +82,16 @@ test("keeps visible downloads and search metadata on the published release", asy
   assert.doesNotMatch(document, /__PULSECLIP_[A-Z_]+__/);
 });
 
-test("prerenders essential information and distinguishes upcoming features", async () => {
+test("prerenders essential information and the published feature set", async () => {
   const document = await readFile(new URL("../dist/client/index.html", import.meta.url), "utf8");
   const text = document.replace(/<!--.*?-->/g, "");
   assert.match(text, /리플레이를 미리 켜두/);
   assert.match(text, /기본 설정에서는 F8을 누르면 바로 전 45초가 저장됩니다/);
   assert.match(text, /SmartScreen/);
   assert.match(text, /현재 PC의 진단 결과가 아니며/);
-  assert.ok(text.includes(`v${DEVELOPMENT_VERSION}에서 준비한 변화`));
-  assert.ok(text.includes(`아래 기능은 공개 베타 v${RELEASE_VERSION}에 포함되지 않습니다.`));
+  assert.ok(text.includes(`v${RELEASE_VERSION}에서 새로워진 기능`));
+  assert.ok(text.includes(`v${RELEASE_VERSION} 공개 베타에 포함되어 있습니다.`));
+  assert.doesNotMatch(text, /아직 공개되지|공개 베타에 포함되지|개발 버전에 추가/);
   assert.doesNotMatch(text, /3개 항목 정상|명장면을 놓쳤다면|게임 성능을 방해하지/);
 });
 

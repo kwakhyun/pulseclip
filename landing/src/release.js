@@ -1,11 +1,8 @@
-import appPackage from "../../package.json" with { type: "json" };
-
 export const GITHUB_URL = "https://github.com/kwakhyun/pulseclip";
 export const SITE_URL = "https://kwakhyun.github.io/pulseclip/";
 // Published installers are independent of the version being developed on main.
 // Update only after these assets exist in the corresponding GitHub release.
-export const RELEASE_VERSION = "0.1.3";
-export const DEVELOPMENT_VERSION = appPackage.version;
+export const RELEASE_VERSION = "0.1.4";
 export const RELEASE_URL = `${GITHUB_URL}/releases/tag/v${RELEASE_VERSION}`;
 export const DOWNLOAD_URL = `${GITHUB_URL}/releases/download/v${RELEASE_VERSION}/PulseClip-${RELEASE_VERSION}-Setup.exe`;
 export const CHECKSUM_URL = `${GITHUB_URL}/releases/download/v${RELEASE_VERSION}/SHA256SUMS.txt`;
@@ -28,7 +25,7 @@ export const structuredData = {
       softwareVersion: RELEASE_VERSION, isAccessibleForFree: true,
       offers: { "@type": "Offer", price: "0", priceCurrency: "KRW" },
       license: `${GITHUB_URL}/blob/main/LICENSE`, image: `${SITE_URL}assets/pulseclip-og.png`,
-      featureList: ["F8 즉시 리플레이 저장", "15~180초 리플레이 길이 설정", "F9 일반 녹화", "로컬 MP4 보관함", "시스템 오디오와 마이크 믹싱", "상태 점검과 저장 공간 보호"],
+      featureList: ["F8 즉시 리플레이 저장", "15~180초 리플레이 길이 설정", "F9 일반 녹화", "로컬 MP4 구간 편집", "클립 이름 변경과 재생 속도 조절", "화질 프리셋", "시스템 오디오와 마이크 믹싱", "상태 점검과 저장 공간 보호"],
       sameAs: [GITHUB_URL],
     },
   ],

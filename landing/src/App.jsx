@@ -15,7 +15,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 
-import { DEVELOPMENT_VERSION, GITHUB_URL, RELEASE_VERSION } from "./release.js";
+import { GITHUB_URL, RELEASE_VERSION } from "./release.js";
 import { DownloadButton, DownloadDetails } from "./Download.jsx";
 
 const ASSET_BASE = "./assets/";
@@ -99,7 +99,7 @@ const faqs = [
   {
     question: "게임 성능에 미치는 영향은 어느 정도인가요?",
     answer:
-      "일반 녹화와 즉시 리플레이가 하나의 인코딩 과정을 공유하며, 지원되는 PC에서는 H.264 하드웨어 인코딩을 우선 사용합니다. 성능 차이는 게임과 PC 사양에 따라 달라질 수 있습니다.",
+      "일반 녹화와 즉시 리플레이가 하나의 인코딩 과정을 공유합니다. PC에서 사용할 수 있는 하드웨어 또는 소프트웨어 인코더를 선택하며, 성능 차이는 게임과 PC 사양에 따라 달라질 수 있습니다.",
   },
   {
     question: "설치할 때 SmartScreen 경고가 뜨는 이유는 무엇인가요?",
@@ -107,7 +107,7 @@ const faqs = [
   },
   {
     question: "구간 편집 기능은 어디에서 사용할 수 있나요?",
-    answer: `구간 편집, 이름 변경, 품질 프리셋은 v${DEVELOPMENT_VERSION} 개발 버전에 추가됐습니다. 현재 다운로드되는 v${RELEASE_VERSION} 공개 베타에는 포함되지 않았으며, 개발 내용은 GitHub 변경 내역에서 확인할 수 있습니다.`,
+    answer: `v${RELEASE_VERSION} 공개 베타에 포함되어 있습니다. 내 클립에서 영상을 연 뒤 ‘구간 잘라 저장’을 선택하세요. 필요한 구간을 새 MP4로 저장하며 원본은 유지됩니다. 이름 변경, 재생 속도와 품질 프리셋도 사용할 수 있습니다.`,
   },
   {
     question: "DRM으로 보호된 콘텐츠도 녹화할 수 있나요?",
@@ -455,15 +455,15 @@ function FinalCta() {
   );
 }
 
-function DevelopmentPreview() {
-  return <section className="development-preview" aria-labelledby="development-title">
-    <div className="content-shell development-layout">
-      <div><p className="section-label section-label--mint">개발 버전 · 아직 공개되지 않았어요</p>
-        <h2 id="development-title">v{DEVELOPMENT_VERSION}에서 준비한 변화</h2>
-        <p>아래 기능은 공개 베타 v{RELEASE_VERSION}에 포함되지 않습니다.</p>
+function ReleaseHighlights() {
+  return <section className="release-highlights" aria-labelledby="release-title">
+    <div className="content-shell release-layout">
+      <div><p className="section-label section-label--mint">최신 공개 베타 · 지금 사용할 수 있어요</p>
+        <h2 id="release-title">v{RELEASE_VERSION}에서 새로워진 기능</h2>
+        <p>녹화부터 필요한 구간 편집까지, 내 PC에서 마무리하세요.</p>
       </div>
       <div><ul><li>필요한 구간만 새 MP4로 저장하고 원본 유지</li><li>클립 이름 변경, 재생 속도와 정렬</li><li>품질 프리셋과 저장 공간 자동 정리 선택</li></ul>
-        <a className="text-link" href={`${GITHUB_URL}/blob/main/docs/RELEASE_NOTES_v${DEVELOPMENT_VERSION}.md`}>개발 버전 변경 내역 <ArrowUpRight size={15} aria-hidden="true" /></a>
+        <a className="text-link" href={`${GITHUB_URL}/releases/tag/v${RELEASE_VERSION}`}>v{RELEASE_VERSION} 변경 내역 <ArrowUpRight size={15} aria-hidden="true" /></a>
       </div>
     </div>
   </section>;
@@ -547,7 +547,7 @@ export function App() {
         <PrivacySection />
         <ReliabilitySection />
         <HowItWorks />
-        <DevelopmentPreview />
+        <ReleaseHighlights />
         <FaqSection />
         <FinalCta />
       </main>

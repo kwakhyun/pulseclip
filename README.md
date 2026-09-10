@@ -20,17 +20,17 @@
 
 | 구분 | 버전 | 이용 방법 |
 | --- | --- | --- |
-| 공개 베타 | **v0.1.3** | [GitHub Releases](https://github.com/kwakhyun/pulseclip/releases/tag/v0.1.3)에서 설치 파일 다운로드 |
-| 개발 버전 | **v0.1.4** | 이 저장소의 현재 소스에서 빌드. 아직 공개 설치 파일로 배포하지 않음 |
+| 최신 공개 베타 | **v0.1.4** | [GitHub Releases](https://github.com/kwakhyun/pulseclip/releases/tag/v0.1.4)에서 설치 파일 다운로드 |
+| 소스 코드 | **v0.1.4** | 공개 릴리스와 같은 버전. 직접 빌드 가능 |
 
-공식 웹사이트의 다운로드 버튼은 **v0.1.3 공개 베타**로 연결됩니다. 구간 편집 등 아래의 v0.1.4 추가 기능은 해당 다운로드에 포함되지 않습니다.
+공식 웹사이트에서 **v0.1.4 공개 베타**를 내려받을 수 있습니다. 구간 편집, 클립 이름 변경, 품질 프리셋과 녹화 안정성 개선이 포함됩니다.
 
 - 지원 환경: Windows 10 22H2 이상 또는 Windows 11
-- [x64 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/PulseClip-0.1.3-x64-Setup.exe): Intel·AMD PC, 약 115 MB
-- [Arm64 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/PulseClip-0.1.3-arm64-Setup.exe): Windows on Arm PC, 약 109 MB
-- [통합 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/PulseClip-0.1.3-Setup.exe): PC 종류를 모를 때 선택, 약 223 MB
+- [x64 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.4/PulseClip-0.1.4-x64-Setup.exe): Intel·AMD PC, 약 115 MB
+- [Arm64 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.4/PulseClip-0.1.4-arm64-Setup.exe): Windows on Arm PC, 약 109 MB
+- [통합 설치 파일](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.4/PulseClip-0.1.4-Setup.exe): PC 종류를 모를 때 선택, 약 223 MB
 
-현재 공개 베타에는 코드 서명이 없어 Windows SmartScreen 경고가 나타날 수 있습니다. 공식 릴리스의 [SHA256SUMS.txt](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.3/SHA256SUMS.txt)로 파일 무결성을 확인할 수 있습니다.
+현재 공개 베타에는 코드 서명이 없어 Windows SmartScreen 경고가 나타날 수 있습니다. 공식 릴리스의 [SHA256SUMS.txt](https://github.com/kwakhyun/pulseclip/releases/download/v0.1.4/SHA256SUMS.txt)로 파일 무결성을 확인할 수 있습니다.
 
 ## 처음 사용하기
 
@@ -46,7 +46,7 @@
 
 ![v0.1.3 PulseClip 홈 화면 — NTE 게임 장면을 사용한 녹화 예시](landing/public/assets/pulseclip-app-home-nte.png)
 
-## 공개 베타 v0.1.3 기능
+## 공개 베타 기본 기능
 
 | 기능 | 제공 내용 |
 | --- | --- |
@@ -60,7 +60,7 @@
 
 PC 성능과 게임에 따라 인코딩 부하가 달라질 수 있습니다. 복구는 남은 파일 상태에 따라 실패할 수 있으며, DRM 등 보호 기능을 우회하지 않습니다.
 
-## 개발 버전 v0.1.4에서 추가한 기능
+## v0.1.4에서 추가한 기능
 
 - **구간 편집:** 시작·종료 시간을 선택해 새 MP4로 저장합니다. 원본 보존, 미리보기, 진행률과 취소를 지원합니다. 구간에 따라 재인코딩될 수 있습니다.
 - **클립 관리:** 이름 변경, 0.5×~2× 재생, 날짜·용량·길이 정렬, 편집·복구 필터를 제공합니다.
@@ -75,7 +75,7 @@ PC 성능과 게임에 따라 인코딩 부하가 달라질 수 있습니다. �
   </tr>
 </table>
 
-위 개발 버전 화면은 합성 영상으로 녹화·편집을 검증한 실제 앱 캡처입니다. 자세한 수정 사항은 [v0.1.4 변경 내역](docs/RELEASE_NOTES_v0.1.4.md), 화면별 결과는 [품질 검토](docs/QUALITY_REVIEW_2026-09-10.md)를 참고하세요.
+위 v0.1.4 화면은 합성 영상으로 녹화·편집을 검증한 실제 앱 캡처입니다. 자세한 수정 사항은 [v0.1.4 변경 내역](docs/RELEASE_NOTES_v0.1.4.md), 화면별 결과는 [품질 검토](docs/QUALITY_REVIEW_2026-09-10.md)를 참고하세요.
 
 ## 개발 환경
 
@@ -131,7 +131,7 @@ flowchart LR
 
 ## 랜딩페이지와 배포
 
-[랜딩페이지 개발 안내](landing/README.md)에 실행과 검증 방법을 정리했습니다. 공개 설치 버전과 다운로드·검색 메타데이터는 `landing/src/release.js`에서 함께 관리합니다. 개발 버전은 루트 `package.json`을 읽으므로 공개 버전과 별도로 표시됩니다.
+[랜딩페이지 개발 안내](landing/README.md)에 실행과 검증 방법을 정리했습니다. 공개 설치 버전과 다운로드·검색 메타데이터는 `landing/src/release.js`에서 함께 관리합니다. 새 릴리스의 파일을 공개한 뒤 해당 정보와 기능 안내를 갱신합니다.
 
 - `main`과 Pull Request에서 데스크톱과 랜딩페이지 품질 검사를 실행합니다.
 - `main`의 랜딩페이지 변경은 GitHub Pages에 자동 배포합니다.
@@ -146,7 +146,7 @@ flowchart LR
 | [보안 원칙](docs/SECURITY.md) · [개인정보 처리방침](PRIVACY.md) | 권한, 로컬 데이터, 네트워크 사용 |
 | [로드맵](docs/FEATURE_ROADMAP.md) | 완료한 기능과 다음 개발 범위 |
 | [릴리스 가이드](docs/RELEASE.md) | 패키징, 서명, 배포 전 검사 |
-| [v0.1.4 변경 내역](docs/RELEASE_NOTES_v0.1.4.md) | 이번 개발 버전의 추가 기능과 수정 사항 |
+| [v0.1.4 변경 내역](docs/RELEASE_NOTES_v0.1.4.md) | 최신 공개 베타의 추가 기능과 수정 사항 |
 | [앱 품질 검토](docs/QUALITY_REVIEW_2026-09-10.md) | 실제 앱의 화면별 검증 결과 |
 | [README·랜딩 검토](docs/LANDING_REVIEW_2026-09-10.md) | 문구·버전 정합성·반응형 개선 결과 |
 
