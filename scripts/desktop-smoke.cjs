@@ -51,9 +51,13 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     while (Date.now() < deadline) {
       if (await run(code)) return;
       const failure = await run('document.querySelector(".toast-error")?.innerText ?? ""');
-      if (failure) throw new Error(`Desktop action failed: ${failure}`);
+      if (failure) {
+        console.error('Synthetic media:', await run('window.__smokeMedia?.diagnostics() ?? null'));
+        throw new Error(`Desktop action failed: ${failure}`);
+      }
       await wait(100);
     }
+    console.error('Synthetic media:', await run('window.__smokeMedia?.diagnostics() ?? null'));
     throw new Error(`Timed out: ${code}`);
   };
   const click = async text => {
@@ -87,10 +91,16 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       const timer = setInterval(() => { ctx.fillStyle = ['#243b53','#334e68','#486581'][Math.floor(frame/30)%3]; ctx.fillRect(0,0,640,360); ctx.fillStyle='#ffffff';ctx.font='28px sans-serif';ctx.fillText('PulseClip media test · ' + frame++,32,190); }, 33);
       navigator.mediaDevices.getDisplayMedia = async () => {
         const stream = canvas.captureStream(30);
-        const audio = new AudioContext(); const oscillator = audio.createOscillator();
+        // Keep audio processing independent of physical output devices on CI runners.
+        const audio = new AudioContext({ sampleRate: 48000, sinkId: { type: 'none' } });
+        const oscillator = audio.createOscillator();
         const gain = audio.createGain(); gain.gain.value = 0.005;
         const destination = audio.createMediaStreamDestination(); oscillator.connect(gain).connect(destination); oscillator.start();
         destination.stream.getAudioTracks().forEach(track => stream.addTrack(track));
+        await audio.resume();
+        window.__smokeMedia = { audio, oscillator, gain, destination, canvas, timer,
+          diagnostics: () => ({ frames: frame, audioState: audio.state, audioTime: audio.currentTime,
+            tracks: stream.getTracks().map(track => ({ kind: track.kind, state: track.readyState, muted: track.muted })) }) };
         return stream;
       };
     })()`);

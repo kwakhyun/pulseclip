@@ -15,7 +15,9 @@ try {
   const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
   const log = await readFile(path.join(temporary, 'logs', 'pulseclip.log'), 'utf8').catch(() => '');
   await mkdir(path.join(root, 'artifacts/verification'), { recursive: true });
-  await writeFile(path.join(root, 'artifacts/verification/desktop-smoke.log'), log.replaceAll(temporary, '<isolated-test-data>'));
+  const redactedLog = log.replaceAll(temporary, '<isolated-test-data>');
+  await writeFile(path.join(root, 'artifacts/verification/desktop-smoke.log'), redactedLog);
+  if (code !== 0 && redactedLog) console.error(redactedLog);
   process.exitCode = code === 0 ? 0 : 1;
 } finally {
   // This exact directory was created above; never clean arbitrary user-supplied paths.
