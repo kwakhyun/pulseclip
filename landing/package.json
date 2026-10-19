@@ -13,7 +13,7 @@
     "test:sites": "node --test tests/sites-worker.test.mjs"
   },
   "dependencies": {
-    "@fontsource-variable/noto-sans-kr": "^5.2.8",
+    "@fontsource-variable/noto-sans-kr": "^5.3.1",
     "@phosphor-icons/react": "^2.1.10",
     "@vitejs/plugin-react": "6.1.1",
     "react": "19.2.8",
