@@ -11,7 +11,8 @@ const temporaryDirectories: string[] = [];
 afterEach(async () => {
   await Promise.all(
     temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, { recursive: true, force: true }),
+      // The logger may still append to its file while the directory is removed.
+      rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }),
     ),
   );
 });
@@ -114,6 +115,51 @@ describe('ClipRepository metadata recovery', () => {
     await expect(repository.recoverPartFiles()).resolves.toBe(0);
     await expect(readFile(partPath)).resolves.toHaveLength(8_192);
     await expect(repository.list()).resolves.toHaveLength(0);
+  });
+
+  it('moves manual deletes to the Recycle Bin and falls back when the drive has none', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-clips-'));
+    temporaryDirectories.push(directory);
+    const settings = { get: () => ({ outputFolder: directory, storageLimitGb: 20, autoCleanup: true }) } as unknown as SettingsStore;
+    const trashed: string[] = [];
+    let trashAvailable = true;
+    const repository = new ClipRepository(settings, new Logger(directory), {
+      trash: async filePath => {
+        if (!trashAvailable) throw new Error('No Recycle Bin');
+        trashed.push(path.basename(filePath));
+        await rm(filePath);
+      },
+    });
+    const request = { kind: 'replay' as const, sourceName: 'Test', width: 640, height: 360, fps: 30, codec: 'AVC' };
+    for (const name of ['PulseClip_a_Replay.mp4', 'PulseClip_b_Replay.mp4']) await writeFile(path.join(directory, name), Buffer.alloc(1024));
+    const first = await repository.registerCompletedFile(path.join(directory, 'PulseClip_a_Replay.mp4'), request, 1000);
+    const second = await repository.registerCompletedFile(path.join(directory, 'PulseClip_b_Replay.mp4'), request, 1000);
+
+    await expect(repository.delete(first.id)).resolves.toEqual({ trashed: true });
+    expect(trashed).toEqual(['PulseClip_a_Replay.mp4']);
+    trashAvailable = false;
+    await expect(repository.delete(second.id)).resolves.toEqual({ trashed: false });
+    await expect(repository.list()).resolves.toHaveLength(0);
+  });
+
+  it('reports automatic cleanup so people know which clips disappeared', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-clips-'));
+    temporaryDirectories.push(directory);
+    const settings = { get: () => ({ outputFolder: directory, storageLimitGb: 2048 / 1024 ** 3, autoCleanup: true }) } as unknown as SettingsStore;
+    const reports: unknown[] = [];
+    const trash = async () => { throw new Error('cleanup must free space, not use the Recycle Bin'); };
+    const repository = new ClipRepository(settings, new Logger(directory), { trash, onCleanup: result => reports.push(result) });
+    const request = { kind: 'replay' as const, sourceName: 'Test', width: 640, height: 360, fps: 30, codec: 'AVC' };
+    for (const name of ['PulseClip_1_Replay.mp4', 'PulseClip_2_Replay.mp4', 'PulseClip_3_Replay.mp4']) {
+      await writeFile(path.join(directory, name), Buffer.alloc(1024));
+      await repository.registerCompletedFile(path.join(directory, name), request, 1000);
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+
+    await expect(repository.enforceQuota()).resolves.toEqual({ count: 2, bytes: 2048 });
+    expect(reports).toEqual([{ count: 2, bytes: 2048 }]);
+    await expect(repository.enforceQuota()).resolves.toEqual({ count: 0, bytes: 0 });
+    expect(reports).toHaveLength(1);
   });
 });
 

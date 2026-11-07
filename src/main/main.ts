@@ -9,19 +9,24 @@ import {
   Menu,
   nativeImage,
   net,
+  Notification,
   powerMonitor,
   protocol,
   session,
+  shell,
   Tray,
   type IpcMainInvokeEvent,
+  type NativeImage,
   type RenderProcessGoneDetails,
 } from 'electron';
-import { APP_EVENTS } from '../shared/ipc';
 import type {
+  AppEventMap,
+  AppEventName,
   CaptureSource,
   PrepareCaptureRequest,
   RuntimeStatus,
   ShortcutRegistration,
+  StorageCleanupResult,
 } from '../shared/types';
 import { resolveAppAssetPath } from './app-assets';
 import { ClipRepository } from './clip-repository';
@@ -35,6 +40,9 @@ import { RendererShutdownCoordinator } from './shutdown-coordinator';
 import { decideWindowCloseAction } from './window-close-policy';
 import { WriteSessionManager } from './write-session-manager';
 import { mediaResponse } from './media-response';
+import { PowerResumePolicy } from './power-resume-policy';
+import { paintStatusDot, statusDotFor } from './tray-status-icon';
+import { displayShortcut } from '../shared/hotkeys';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -60,6 +68,8 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const SHUTDOWN_TIMEOUT_MS = 8_000;
 const RENDERER_CRASH_WINDOW_MS = 60_000;
 const MAX_RENDERER_RELOADS = 3;
+const SHORTCUT_SUSPEND_LIMIT_MS = 20_000;
+const RESUME_SETTLE_MS = 2_000;
 
 if (!hasSingleInstanceLock) {
   app.quit();
@@ -87,6 +97,12 @@ let runtimeStatus: RuntimeStatus = {
   bufferSeconds: 0,
   recordingSeconds: 0,
 };
+let trayMenuKey = '';
+let trayIconPhase: RuntimeStatus['phase'] | null = null;
+const trayIcons = new Map<string, NativeImage>();
+let shortcutResumeTimer: NodeJS.Timeout | null = null;
+let dragIconImage: NativeImage | null = null;
+const powerResume = new PowerResumePolicy();
 const rendererShutdown = new RendererShutdownCoordinator();
 const rendererCrashPolicy = new RendererCrashPolicy(
   MAX_RENDERER_RELOADS,
@@ -124,7 +140,10 @@ async function initialize(): Promise<void> {
     logger,
   );
   await settingsStore.load();
-  clipRepository = new ClipRepository(settingsStore, logger);
+  clipRepository = new ClipRepository(settingsStore, logger, {
+    trash: (filePath) => shell.trashItem(filePath),
+    onCleanup: announceStorageCleanup,
+  });
   diskSafety = new DiskSafetyService(settingsStore, logger);
   const recovered = await clipRepository.recoverPartFiles();
   writeSessionManager = new WriteSessionManager(
@@ -152,7 +171,9 @@ async function initialize(): Promise<void> {
     listCaptureSources,
     prepareCapture,
     registerShortcuts: registerGlobalShortcuts,
+    suspendShortcuts,
     getShortcutRegistration: () => ({ ...shortcutRegistration }),
+    dragIcon,
     applyLoginItemSettings,
     updateTrayStatus,
     onShutdownReady: () => {
@@ -219,6 +240,8 @@ function createMainWindow(): BrowserWindow {
       });
     },
   );
+  window.on('maximize', () => sendAppEvent('window:maximized-changed', { maximized: true }));
+  window.on('unmaximize', () => sendAppEvent('window:maximized-changed', { maximized: false }));
   window.on('close', (event) => {
     const action = decideWindowCloseAction(
       isQuitting,
@@ -337,6 +360,10 @@ function isOwnWindowSource(source: { id: string; name: string }): boolean {
 }
 
 function registerGlobalShortcuts(): ShortcutRegistration {
+  if (shortcutResumeTimer) {
+    clearTimeout(shortcutResumeTimer);
+    shortcutResumeTimer = null;
+  }
   globalShortcut.unregisterAll();
   const shortcuts = settingsStore.get().hotkeys;
   const register = (accelerator: string, listener: () => void) => {
@@ -352,6 +379,38 @@ function registerGlobalShortcuts(): ShortcutRegistration {
   shortcutRegistration = { saveReplay, toggleRecording };
   rebuildTrayMenu();
   return { ...shortcutRegistration };
+}
+
+/**
+ * Lets the settings hotkey recorder receive keys that are registered globally.
+ * The suspension always ends on its own, so a closed or crashed renderer can
+ * never leave the user without F8.
+ */
+function suspendShortcuts(suspended: boolean): ShortcutRegistration {
+  if (!suspended) return registerGlobalShortcuts();
+  globalShortcut.unregisterAll();
+  if (shortcutResumeTimer) clearTimeout(shortcutResumeTimer);
+  shortcutResumeTimer = setTimeout(() => {
+    shortcutResumeTimer = null;
+    registerGlobalShortcuts();
+  }, SHORTCUT_SUSPEND_LIMIT_MS);
+  return { ...shortcutRegistration };
+}
+
+function dragIcon(): NativeImage {
+  dragIconImage ??= nativeImage
+    .createFromPath(runtimeAssetPath('icon.png'))
+    .resize({ width: 48, height: 48 });
+  return dragIconImage;
+}
+
+function announceStorageCleanup(result: StorageCleanupResult): void {
+  sendAppEvent('storage:cleanup-completed', result);
+  if (!settingsStore.get().showNotifications || !Notification.isSupported()) return;
+  new Notification({
+    title: '저장 한도를 넘어 오래된 클립을 정리했습니다',
+    body: `즐겨찾기가 아닌 클립 ${result.count}개를 삭제했습니다. 설정에서 한도와 자동 정리를 바꿀 수 있습니다.`,
+  }).show();
 }
 
 function applyLoginItemSettings(): void {
@@ -403,13 +462,28 @@ async function setupProtocolHandlers(): Promise<void> {
 }
 
 function createTray(): void {
-  const icon = nativeImage
-    .createFromPath(runtimeAssetPath('tray-icon.png'))
-    .resize({ width: 16, height: 16 });
-  tray = new Tray(icon);
+  tray = new Tray(trayIconFor(runtimeStatus.phase));
+  trayIconPhase = runtimeStatus.phase;
   tray.setToolTip('PulseClip');
   tray.on('double-click', () => showMainWindow());
   rebuildTrayMenu();
+}
+
+function trayIconFor(phase: RuntimeStatus['phase']): NativeImage {
+  const dot = statusDotFor(phase);
+  const key = dot ? `${dot.red}-${dot.green}-${dot.blue}` : 'plain';
+  const cached = trayIcons.get(key);
+  if (cached) return cached;
+  const base = nativeImage
+    .createFromPath(runtimeAssetPath('tray-icon.png'))
+    .resize({ width: 16, height: 16 });
+  let icon = base;
+  if (dot && !base.isEmpty()) {
+    const { width, height } = base.getSize();
+    icon = nativeImage.createFromBitmap(paintStatusDot(base.toBitmap(), width, height, dot), { width, height });
+  }
+  trayIcons.set(key, icon);
+  return icon;
 }
 
 function runtimeAssetPath(fileName: string): string {
@@ -420,24 +494,36 @@ function runtimeAssetPath(fileName: string): string {
 
 function rebuildTrayMenu(): void {
   if (!tray || !settingsStore) return;
-  const statusLabel = trayStatusLabel(runtimeStatus);
+  const hotkeys = settingsStore.get().hotkeys;
+  const captureOn = runtimeStatus.phase !== 'idle' && runtimeStatus.phase !== 'error';
+  const statusLabel = trayPhaseLabel(runtimeStatus.phase);
+  // Rebuilding a native menu every second can close it while it is open.
+  // Only rebuild when something shown in the menu actually changed.
+  const key = [statusLabel, captureOn, hotkeys.saveReplay, hotkeys.toggleRecording].join('|');
+  if (key === trayMenuKey) return;
+  trayMenuKey = key;
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: statusLabel, enabled: false },
       { type: 'separator' },
       { label: 'PulseClip 열기', click: () => showMainWindow() },
+      captureOn
+        ? {
+            label: '리플레이 준비 끄기',
+            click: () => sendAppEvent('capture:stop-requested'),
+          }
+        : {
+            label: '리플레이 준비 켜기',
+            click: () => sendAppEvent('capture:start-requested'),
+          },
       {
-        label: `최근 구간 저장 (${settingsStore.get().hotkeys.saveReplay})`,
+        label: `최근 구간 저장 (${displayShortcut(hotkeys.saveReplay)})`,
+        enabled: captureOn,
         click: () => sendAppEvent('shortcut:save-replay'),
       },
       {
-        label: `녹화 시작/종료 (${settingsStore.get().hotkeys.toggleRecording})`,
+        label: `녹화 시작/종료 (${displayShortcut(hotkeys.toggleRecording)})`,
         click: () => sendAppEvent('shortcut:toggle-recording'),
-      },
-      {
-        label: '리플레이 준비 끄기',
-        enabled: runtimeStatus.phase !== 'idle',
-        click: () => sendAppEvent('capture:stop-requested'),
       },
       { type: 'separator' },
       {
@@ -454,7 +540,20 @@ function rebuildTrayMenu(): void {
 function updateTrayStatus(status: RuntimeStatus): void {
   runtimeStatus = status;
   tray?.setToolTip(trayStatusLabel(status));
+  if (tray && trayIconPhase !== status.phase) {
+    trayIconPhase = status.phase;
+    tray.setImage(trayIconFor(status.phase));
+  }
   rebuildTrayMenu();
+}
+
+function trayPhaseLabel(phase: RuntimeStatus['phase']): string {
+  if (phase === 'recording') return '녹화 중';
+  if (phase === 'buffering' || phase === 'saving') return '리플레이 준비됨';
+  if (phase === 'error') return '오류가 발생했습니다';
+  if (phase === 'recovering') return '장치 연결 복구 중';
+  if (phase === 'starting') return '캡처 준비 중';
+  return 'PulseClip · 대기 중';
 }
 
 function trayStatusLabel(status: RuntimeStatus): string {
@@ -471,9 +570,19 @@ function trayStatusLabel(status: RuntimeStatus): string {
 }
 
 function setupPowerEvents(): void {
-  const requestStop = () => sendAppEvent('capture:stop-requested');
+  const requestStop = () => {
+    if (powerResume.onSuspendOrLock(runtimeStatus.phase)) sendAppEvent('capture:stop-requested');
+  };
+  const requestResume = (event: 'resume' | 'unlock-screen') => {
+    const locked = powerMonitor.getSystemIdleState(1) === 'locked';
+    if (!powerResume.onResumeOrUnlock(event, locked)) return;
+    // Give Windows a moment to restore displays and audio endpoints.
+    setTimeout(() => sendAppEvent('capture:resume-requested'), RESUME_SETTLE_MS);
+  };
   powerMonitor.on('suspend', requestStop);
   powerMonitor.on('lock-screen', requestStop);
+  powerMonitor.on('resume', () => requestResume('resume'));
+  powerMonitor.on('unlock-screen', () => requestResume('unlock-screen'));
 }
 
 async function performGracefulShutdown(): Promise<void> {
@@ -571,10 +680,13 @@ function requestFatalQuit(message: string): void {
   app.quit();
 }
 
-function sendAppEvent(name: (typeof APP_EVENTS)[number]): void {
+function sendAppEvent<T extends AppEventName>(
+  name: T,
+  ...payload: AppEventMap[T] extends undefined ? [] : [AppEventMap[T]]
+): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   try {
-    mainWindow.webContents.send(name);
+    mainWindow.webContents.send(name, ...payload);
   } catch (error) {
     logger?.warn('Could not deliver renderer event', { name, error });
   }

@@ -15,6 +15,7 @@ import type {
   BeginFileRequest,
   Clip,
   ClipKind,
+  StorageCleanupResult,
   StorageStats,
 } from '../shared/types';
 import type { SettingsStore } from './settings-store';
@@ -24,6 +25,13 @@ import { AsyncQueue } from '../shared/async-queue';
 
 interface StoredClip extends Omit<Clip, 'mediaUrl'> {
   schemaVersion: 1;
+}
+
+export interface ClipRepositoryOptions {
+  /** Moves a file to the OS Recycle Bin. Manual deletes use it so mistakes can be undone. */
+  trash?: (filePath: string) => Promise<void>;
+  /** Called after automatic quota cleanup removed at least one clip. */
+  onCleanup?: (result: StorageCleanupResult) => void;
 }
 
 const VIDEO_PREFIX = 'PulseClip_';
@@ -48,6 +56,7 @@ export class ClipRepository {
   constructor(
     private readonly settings: SettingsStore,
     private readonly logger: Logger,
+    private readonly options: ClipRepositoryOptions = {},
   ) {}
 
   async list(): Promise<Clip[]> {
@@ -159,22 +168,34 @@ export class ClipRepository {
     });
   }
 
-  async delete(id: string): Promise<void> {
+  /** Moves the clip to the Recycle Bin when possible. Resolves to whether it was recoverable. */
+  async delete(id: string): Promise<{ trashed: boolean }> {
     return this.operations.run(async () => {
       const folder = this.settings.get().outputFolder;
       const clip = (await this.listInFolder(folder)).find(item => item.id === id);
       if (!clip) throw new Error('클립을 찾을 수 없습니다.');
-      await this.deleteInFolder(clip, folder);
+      return this.deleteInFolder(clip, folder, true);
     });
   }
 
-  private async deleteInFolder(clip: Clip, folder: string): Promise<void> {
+  private async deleteInFolder(clip: Clip, folder: string, preferTrash: boolean): Promise<{ trashed: boolean }> {
     if (this.protectedIds.has(clip.id)) throw new Error('클립을 내보내는 중입니다. 완료 후 삭제해 주세요.');
     const filePath = path.join(folder, clip.fileName);
-    await rm(filePath, { force: false });
+    let trashed = false;
+    if (preferTrash && this.options.trash) {
+      try {
+        await this.options.trash(filePath);
+        trashed = true;
+      } catch (error) {
+        // Network shares and some removable drives have no Recycle Bin.
+        this.logger.warn('Recycle Bin unavailable; deleting clip permanently', { id: clip.id, error });
+      }
+    }
+    if (!trashed) await rm(filePath, { force: false });
     this.mediaIndex.paths.delete(clip.id);
     await rm(metadataPath(filePath), { force: true });
-    this.logger.info('Clip deleted', { id: clip.id, fileName: clip.fileName });
+    this.logger.info('Clip deleted', { id: clip.id, fileName: clip.fileName, trashed });
+    return { trashed };
   }
 
   async storageStats(clips?: Clip[]): Promise<StorageStats> {
@@ -190,17 +211,23 @@ export class ClipRepository {
     };
   }
 
-  async enforceQuota(preserveIds: readonly string[] = []): Promise<void> {
-    return this.operations.run(() => this.cleanupQuota(preserveIds));
+  async enforceQuota(preserveIds: readonly string[] = []): Promise<StorageCleanupResult> {
+    const result = await this.operations.run(() => this.cleanupQuota(preserveIds));
+    if (result.count > 0) {
+      this.logger.info('Quota cleanup removed clips', { ...result });
+      try { this.options.onCleanup?.(result); } catch (error) { this.logger.warn('Cleanup listener failed', { error }); }
+    }
+    return result;
   }
 
-  private async cleanupQuota(preserveIds: readonly string[]): Promise<void> {
-    if (this.settings.get().autoCleanup === false) return;
+  private async cleanupQuota(preserveIds: readonly string[]): Promise<StorageCleanupResult> {
+    const result: StorageCleanupResult = { count: 0, bytes: 0 };
+    if (this.settings.get().autoCleanup === false) return result;
     const folder = this.settings.get().outputFolder;
     const clips = await this.listInFolder(folder);
     const limit = this.settings.get().storageLimitGb * 1024 ** 3;
     let used = clips.reduce((sum, clip) => sum + clip.bytes, 0);
-    if (used <= limit) return;
+    if (used <= limit) return result;
 
     const target = limit * 0.9;
     const candidates = clips
@@ -210,8 +237,11 @@ export class ClipRepository {
     for (const clip of candidates) {
       if (used <= target) break;
       try {
-        await this.deleteInFolder(clip, folder);
+        // Cleanup exists to free disk space, so it cannot use the Recycle Bin.
+        await this.deleteInFolder(clip, folder, false);
         used -= clip.bytes;
+        result.count += 1;
+        result.bytes += clip.bytes;
       } catch (error) {
         this.logger.warn('Quota cleanup could not delete a clip', {
           id: clip.id,
@@ -219,6 +249,7 @@ export class ClipRepository {
         });
       }
     }
+    return result;
   }
 
   async recoverPartFiles(): Promise<number> {

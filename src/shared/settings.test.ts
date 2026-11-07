@@ -34,11 +34,21 @@ describe('settings sanitization', () => {
     expect(result.outputFolder).toBe('C:\\Clips');
   });
 
+  it('keeps replay always-on for new installs and preserves an explicit opt-out', () => {
+    const defaults = createDefaultSettings('C:\\Clips');
+    expect(defaults.autoStartBuffer).toBe(true);
+    expect(defaults.playSounds).toBe(true);
+    expect(sanitizeSettings({ ...defaults, autoStartBuffer: false, playSounds: false }, defaults))
+      .toMatchObject({ autoStartBuffer: false, playSounds: false });
+  });
+
   it('accepts supported Electron accelerators only', () => {
     expect(sanitizeShortcut('Control+Shift+K', 'F8')).toBe('Control+Shift+K');
     expect(sanitizeShortcut('F12', 'F8')).toBe('F12');
-    expect(sanitizeShortcut('F13', 'F8')).toBe('F8');
+    expect(sanitizeShortcut('F13', 'F8')).toBe('F13');
+    expect(sanitizeShortcut('F25', 'F8')).toBe('F8');
     expect(sanitizeShortcut('A;Remove-Item', 'F8')).toBe('F8');
+    expect(sanitizeShortcut('K', 'F8')).toBe('F8');
   });
 });
 

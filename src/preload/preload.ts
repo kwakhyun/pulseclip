@@ -29,6 +29,8 @@ const IPC = {
   checkForUpdates: 'app:check-updates',
   openReleasePage: 'app:open-release-page',
   deleteClip: 'clips:delete',
+  startClipDrag: 'clips:start-drag',
+  suspendShortcuts: 'shortcuts:suspend',
   revealClip: 'clips:reveal',
   openClip: 'clips:open',
   beginFile: 'files:begin',
@@ -44,10 +46,14 @@ const IPC = {
 const APP_EVENTS = [
   'shortcut:save-replay',
   'shortcut:toggle-recording',
+  'capture:start-requested',
   'capture:stop-requested',
+  'capture:resume-requested',
   'storage:safety-stop-requested',
+  'storage:cleanup-completed',
   'app:shutdown-requested',
   'app:show',
+  'window:maximized-changed',
 ] as const;
 
 const api: PulseClipApi = {
@@ -70,6 +76,8 @@ const api: PulseClipApi = {
   checkForUpdates: () => ipcRenderer.invoke(IPC.checkForUpdates),
   openReleasePage: () => ipcRenderer.invoke(IPC.openReleasePage),
   deleteClip: (id: string) => ipcRenderer.invoke(IPC.deleteClip, id),
+  startClipDrag: (id: string) => ipcRenderer.invoke(IPC.startClipDrag, id),
+  suspendShortcuts: (suspended: boolean) => ipcRenderer.invoke(IPC.suspendShortcuts, suspended),
   revealClip: (id: string) => ipcRenderer.invoke(IPC.revealClip, id),
   openClip: (id: string) => ipcRenderer.invoke(IPC.openClip, id),
   beginFile: (request: BeginFileRequest) => ipcRenderer.invoke(IPC.beginFile, request),
@@ -85,11 +93,12 @@ const api: PulseClipApi = {
   completeShutdown: () => ipcRenderer.invoke(IPC.shutdownReady),
   windowAction: (action: 'minimize' | 'maximize' | 'close' | 'quit') =>
     ipcRenderer.invoke(IPC.windowAction, action),
-  onAppEvent: (name: AppEventName, listener: () => void) => {
+  onAppEvent: (name: AppEventName, listener: (payload: never) => void) => {
     if (!(APP_EVENTS as readonly string[]).includes(name)) {
       throw new Error('지원하지 않는 앱 이벤트입니다.');
     }
-    const wrapped = () => listener();
+    // Payloads come only from the main process (see sendAppEvent) and are plain data.
+    const wrapped = (_event: unknown, payload: unknown) => listener(payload as never);
     ipcRenderer.on(name, wrapped);
     return () => ipcRenderer.removeListener(name, wrapped);
   },

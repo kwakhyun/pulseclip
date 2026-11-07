@@ -6,6 +6,7 @@ import {
   Notification,
   shell,
   type IpcMainInvokeEvent,
+  type NativeImage,
 } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -44,7 +45,9 @@ interface RegisterIpcOptions {
     request: PrepareCaptureRequest,
   ) => Promise<void>;
   registerShortcuts: () => ShortcutRegistration;
+  suspendShortcuts: (suspended: boolean) => ShortcutRegistration;
   getShortcutRegistration: () => ShortcutRegistration;
+  dragIcon: () => NativeImage;
   applyLoginItemSettings: () => void;
   updateTrayStatus: (status: RuntimeStatus) => void;
   onShutdownReady: () => void;
@@ -61,7 +64,9 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
     listCaptureSources,
     prepareCapture,
     registerShortcuts,
+    suspendShortcuts,
     getShortcutRegistration,
+    dragIcon,
     applyLoginItemSettings,
     updateTrayStatus,
     onShutdownReady,
@@ -217,13 +222,27 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
   });
 
   handle(IPC.deleteClip, async (_event, id: unknown) => {
-    await clips.delete(validateId(id));
+    const { trashed } = await clips.delete(validateId(id));
     const currentClips = await clips.list();
     return {
       clips: currentClips,
       storage: await clips.storageStats(currentClips),
+      trashed,
     };
   });
+
+  // Dragging a clip out of PulseClip hands the real MP4 to Discord, Explorer or
+  // an editor. Only registered clip IDs are accepted, never renderer paths.
+  handle(IPC.startClipDrag, async (event, id: unknown) => {
+    const filePath = await clips.resolveMediaPath(validateId(id));
+    if (!filePath) throw new Error('클립을 찾을 수 없습니다.');
+    event.sender.startDrag({ file: filePath, icon: dragIcon() });
+  });
+
+  // The hotkey recorder needs the keys PulseClip has registered globally;
+  // Windows would otherwise deliver them to the shortcut instead of the field.
+  handle(IPC.suspendShortcuts, async (_event, suspended: unknown) =>
+    suspendShortcuts(requireBoolean(suspended, '단축키 일시 중지')));
 
   handle(IPC.revealClip, async (_event, id: unknown) => {
     const filePath = await clips.resolveMediaPath(validateId(id));

@@ -1,4 +1,5 @@
-import { Minus, Square, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Copy, Minus, Square, X } from 'lucide-react';
 import type { CaptureTelemetry } from '../../shared/types';
 import { phaseLabel } from '../utils';
 
@@ -7,6 +8,12 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ telemetry }: TitleBarProps) {
+  const [maximized, setMaximized] = useState(false);
+  useEffect(
+    () => window.pulseClip.onAppEvent('window:maximized-changed', (state) => setMaximized(state.maximized)),
+    [],
+  );
+
   return (
     <header className="titlebar">
       <div className="titlebar-drag-region">
@@ -26,10 +33,10 @@ export function TitleBar({ telemetry }: TitleBarProps) {
         </button>
         <button
           type="button"
-          aria-label="최대화"
+          aria-label={maximized ? '이전 크기로 복원' : '최대화'}
           onClick={() => void window.pulseClip.windowAction('maximize')}
         >
-          <Square size={12} />
+          {maximized ? <Copy size={12} style={{ transform: 'scaleX(-1)' }} /> : <Square size={12} />}
         </button>
         <button
           type="button"

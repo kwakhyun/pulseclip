@@ -10,6 +10,7 @@ export interface ClipActions {
   onReveal: (clip: Clip) => void;
   onOpenExternal: (clip: Clip) => void;
   onDelete: (clip: Clip) => void;
+  onDragOut: (clip: Clip) => void;
 }
 
 export function ClipCard({ clip, ...actions }: ClipActions & { clip: Clip }) {
@@ -23,8 +24,16 @@ export function ClipCard({ clip, ...actions }: ClipActions & { clip: Clip }) {
     return () => document.removeEventListener('pointerdown', close);
   }, [open]);
   return <article className="clip-card">
-    <button type="button" className="clip-preview" aria-label={`${clip.title} 재생`} onClick={() => actions.onOpen(clip)}>
-      <ClipThumbnail url={clip.mediaUrl} />
+    <button
+      type="button"
+      className="clip-preview"
+      aria-label={`${clip.title} 재생`}
+      title="클릭해서 재생 · Discord나 탐색기로 끌어다 놓아 공유"
+      draggable
+      onDragStart={event => { event.preventDefault(); actions.onDragOut(clip); }}
+      onClick={() => actions.onOpen(clip)}
+    >
+      <ClipThumbnail url={clip.mediaUrl} durationMs={clip.durationMs} />
       <span className="clip-fallback">{sourceInitial(clip.sourceName)}</span><span className="clip-preview-shade" />
       <span className={`clip-type type-${clip.kind}`}>{clipKindLabel(clip.kind)}</span>
       <span className="clip-length">{clip.durationMs ? formatDuration(clip.durationMs) : '길이 확인 필요'}</span>

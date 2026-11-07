@@ -38,6 +38,7 @@ export interface AppSettings {
   launchAtStartup: boolean;
   minimizeToTray: boolean;
   showNotifications: boolean;
+  playSounds: boolean;
   storageLimitGb: number;
   autoCleanup: boolean;
   outputFolder: string;
@@ -170,13 +171,29 @@ export interface FinalizeFileRequest {
   durationMs: number;
 }
 
+export interface StorageCleanupResult {
+  count: number;
+  bytes: number;
+}
+
+export interface DeleteClipResult {
+  clips: Clip[];
+  storage: StorageStats;
+  /** False when the file could not be moved to the Recycle Bin and was removed permanently. */
+  trashed: boolean;
+}
+
 export interface AppEventMap {
   'shortcut:save-replay': undefined;
   'shortcut:toggle-recording': undefined;
+  'capture:start-requested': undefined;
   'capture:stop-requested': undefined;
+  'capture:resume-requested': undefined;
   'storage:safety-stop-requested': undefined;
+  'storage:cleanup-completed': StorageCleanupResult;
   'app:shutdown-requested': undefined;
   'app:show': undefined;
+  'window:maximized-changed': { maximized: boolean };
 }
 
 export type AppEventName = keyof AppEventMap;
@@ -199,7 +216,9 @@ export interface PulseClipApi {
   beginTrim(request: TrimFileRequest): Promise<BeginFileResult>;
   checkForUpdates(): Promise<UpdateInfo>;
   openReleasePage(): Promise<void>;
-  deleteClip(id: string): Promise<{ clips: Clip[]; storage: StorageStats }>;
+  deleteClip(id: string): Promise<DeleteClipResult>;
+  startClipDrag(id: string): Promise<void>;
+  suspendShortcuts(suspended: boolean): Promise<ShortcutRegistration>;
   revealClip(id: string): Promise<void>;
   openClip(id: string): Promise<void>;
   beginFile(request: BeginFileRequest): Promise<BeginFileResult>;
@@ -210,7 +229,7 @@ export interface PulseClipApi {
   reportRuntimeStatus(status: RuntimeStatus): Promise<void>;
   completeShutdown(): Promise<void>;
   windowAction(action: 'minimize' | 'maximize' | 'close' | 'quit'): Promise<void>;
-  onAppEvent<T extends AppEventName>(name: T, listener: () => void): () => void;
+  onAppEvent<T extends AppEventName>(name: T, listener: (payload: AppEventMap[T]) => void): () => void;
 }
 
 export type EnginePhase =

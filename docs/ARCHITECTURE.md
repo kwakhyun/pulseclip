@@ -78,6 +78,16 @@ Videos/PulseClip/
 - `renderer/styles`: 기본 화면·보관함·설정·진단·대화상자·접근성·공통 추가 제어로 나눴다. `styles.css`는 진입점이다.
 - `main/update-service.ts`: 사용자가 요청할 때 공식 GitHub 안정 릴리스를 조회한다. 네트워크 제한 시간과 중복 요청 병합·5분 캐시를 적용하며 실행 파일 자동 설치는 하지 않는다.
 
+## 사용 흐름 보강 (v0.1.4 이후 개발 중)
+
+- `main/power-resume-policy.ts`: 화면 잠금·절전 전에 리플레이가 켜져 있었는지 기억하고, 잠금 해제 후 2초 뒤 `capture:resume-requested`로 다시 켠다. 절전 복귀가 잠금 화면에서 끝나면 잠금 해제까지 기다린다.
+- `main/tray-status-icon.ts`: 트레이 아이콘에 녹화(빨강)·리플레이(초록)·문제(주황) 상태 점을 그린다. 트레이 메뉴는 표시 내용이 바뀔 때만 다시 만든다.
+- `shared/hotkeys.ts`: 단축키 파싱·정규화·안전성 검사와 키 입력 → Electron accelerator 변환. 설정 화면은 키 조합을 직접 녹음한다.
+- `renderer/feedback-sounds.ts`: 게임 중 결과를 알리는 합성 효과음. 오디오 파일을 포함하지 않는다.
+- `renderer/capture/audio-level-meter.ts`: 캡처 트랙을 분석 노드로만 연결해 홈 화면 입력 레벨을 표시한다. 인코딩 경로와 스피커 출력에는 연결하지 않는다.
+- 앱 이벤트는 메인 프로세스가 보낸 일반 데이터 payload를 전달할 수 있다(`storage:cleanup-completed`, `window:maximized-changed`). 렌더러에는 IPC 이벤트 객체를 노출하지 않는다.
+- 렌더러의 단축키 동작은 다른 캡처 작업이 진행 중이면 동작별로 한 번만 대기열에 넣고, 4초 안에 실행하지 못하면 취소를 알린다. 리플레이는 "최근 N초"이므로 오래 지연된 저장은 잘못된 장면을 남기기 때문이다.
+
 미디어 프레임률은 `MediaStreamVideoTrackSource` 한 곳에서만 조정한다. 변환 단계에서 중복 조정하면 비동기 패딩 프레임이 GOP 경계를 넘어 역순으로 들어갈 수 있어 제거했다. 시작 중 종료, 저장 중 종료와 반복 종료는 진행 중 Promise를 기다려 처리한다.
 
 ## 검증

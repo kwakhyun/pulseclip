@@ -27,6 +27,12 @@ import { Sidebar } from './components/Sidebar';
 import { TitleBar } from './components/TitleBar';
 import { ToastHost, type ToastMessage } from './components/ToastHost';
 import { useClipEditor } from './hooks/useClipEditor';
+import { playFeedbackSound, type FeedbackSound } from './feedback-sounds';
+import { formatBytes } from './utils';
+import { displayShortcut } from '../shared/hotkeys';
+
+/** A replay saves "the last N seconds"; running it much later would save the wrong moment. */
+const HOTKEY_QUEUE_LIMIT_MS = 4_000;
 
 const EMPTY_STORAGE: StorageStats = {
   bytesUsed: 0,
@@ -55,9 +61,11 @@ const EMPTY_TELEMETRY: CaptureTelemetry = {
   error: null,
 };
 
-interface ActionRegistry {
-  saveReplay: () => void;
-  toggleRecording: () => void;
+type HotkeyAction = 'saveReplay' | 'toggleRecording';
+
+interface ActionRegistry extends Record<HotkeyAction, () => void> {
+  startCapture: () => void;
+  resumeCapture: () => void;
   stopCapture: () => void;
   diskSafetyStop: () => void;
   shutdown: () => void;
@@ -71,6 +79,8 @@ export default function App() {
   const actionsRef = useRef<ActionRegistry>({
     saveReplay: () => undefined,
     toggleRecording: () => undefined,
+    startCapture: () => undefined,
+    resumeCapture: () => undefined,
     stopCapture: () => undefined,
     diskSafetyStop: () => undefined,
     shutdown: () => undefined,
@@ -81,6 +91,10 @@ export default function App() {
   const recoveryStateRef = useRef<CaptureTelemetry['recoveryState']>('none');
   const shutdownStartedRef = useRef(false);
   const busyRef = useRef(false);
+  // Hotkeys pressed while another capture action runs wait here instead of
+  // being dropped. Each action is kept once, so mashing F8 saves one replay.
+  const queuedHotkeys = useRef<Array<{ action: HotkeyAction; at: number }>>([]);
+  const settingsRef = useRef<AppSettings | null>(null);
 
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
@@ -97,7 +111,32 @@ export default function App() {
   const [telemetry, setTelemetry] = useState<CaptureTelemetry>(EMPTY_TELEMETRY);
   const [page, setPage] = useState<NavigationPage>('home');
   const [busy, setBusyState] = useState(false);
-  const setBusy = (value: boolean) => { busyRef.current = value; setBusyState(value); };
+  const setBusy = (value: boolean) => {
+    busyRef.current = value;
+    setBusyState(value);
+    // Let React commit first so the queued action sees the new state.
+    if (!value && queuedHotkeys.current.length > 0) window.setTimeout(drainHotkeys, 0);
+  };
+  const drainHotkeys = () => {
+    if (busyRef.current) return;
+    const next = queuedHotkeys.current.shift();
+    if (!next) return;
+    if (Date.now() - next.at > HOTKEY_QUEUE_LIMIT_MS) {
+      queuedHotkeys.current = [];
+      showToast('info', '이전 작업이 길어져 단축키 입력을 취소했습니다', '원하는 장면이 지나갔다면 다시 눌러 주세요.');
+      signal('failed', { title: '단축키 입력을 취소했습니다', body: '이전 작업이 길어졌습니다. 필요하면 다시 눌러 주세요.' });
+      return;
+    }
+    actionsRef.current[next.action]();
+  };
+  /** Returns true when the action was deferred behind a running one. */
+  const deferHotkey = (action: HotkeyAction): boolean => {
+    if (!busyRef.current) return false;
+    if (!queuedHotkeys.current.some(entry => entry.action === action)) {
+      queuedHotkeys.current.push({ action, at: Date.now() });
+    }
+    return true;
+  };
   const [refreshingSources, setRefreshingSources] = useState(false);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
@@ -110,13 +149,24 @@ export default function App() {
   const showToast = useCallback(
     (tone: ToastMessage['tone'], title: string, description?: string) => {
       const id = ++toastId.current;
-      setToasts((current) => [...current.slice(-1), { id, tone, title, description }]);
-      window.setTimeout(() => {
-        setToasts((current) => current.filter((toast) => toast.id !== id));
-      }, 4500);
+      setToasts((current) => [...current.slice(-2), { id, tone, title, description }]);
+      // Errors stay until dismissed; they often explain why a clip is missing.
+      if (tone !== 'error') {
+        window.setTimeout(() => {
+          setToasts((current) => current.filter((toast) => toast.id !== id));
+        }, 5000);
+      }
     },
     [],
   );
+
+  /** Sound and, when PulseClip is in the background, a Windows notification. */
+  const signal = useCallback((sound: FeedbackSound, notice?: { title: string; body: string }) => {
+    if (settingsRef.current?.playSounds) playFeedbackSound(sound);
+    if (notice && !document.hasFocus()) {
+      void window.pulseClip.notify(notice.title, notice.body).catch(() => undefined);
+    }
+  }, []);
 
   const refreshLibrary = useCallback(async () => {
     const result = await window.pulseClip.listClips();
@@ -217,9 +267,19 @@ export default function App() {
       window.pulseClip.onAppEvent('shortcut:toggle-recording', () =>
         actionsRef.current.toggleRecording(),
       ),
+      window.pulseClip.onAppEvent('capture:start-requested', () =>
+        actionsRef.current.startCapture(),
+      ),
+      window.pulseClip.onAppEvent('capture:resume-requested', () =>
+        actionsRef.current.resumeCapture(),
+      ),
       window.pulseClip.onAppEvent('capture:stop-requested', () =>
         actionsRef.current.stopCapture(),
       ),
+      window.pulseClip.onAppEvent('storage:cleanup-completed', (result) => {
+        showToast('info', `저장 한도를 넘어 오래된 클립 ${result.count}개를 정리했습니다`, `${formatBytes(result.bytes)}를 확보했습니다. 즐겨찾기는 정리하지 않습니다.`);
+        actionsRef.current.refresh();
+      }),
       window.pulseClip.onAppEvent('storage:safety-stop-requested', () =>
         actionsRef.current.diskSafetyStop(),
       ),
@@ -276,6 +336,7 @@ export default function App() {
     };
   }, [engine, refreshLibrary, refreshMicrophones, showToast]);
 
+  settingsRef.current = settings;
   const selectedSource = settings
     ? findStoredSource(sources, settings)
     : null;
@@ -330,18 +391,21 @@ export default function App() {
   const startCapture = async (
     source = selectedSource,
     captureSettings = settings,
+    message = '리플레이 준비가 켜졌습니다',
   ): Promise<boolean> => {
     if (!source || !captureSettings) {
       setSourcePickerOpen(true);
+      signal('failed', { title: '녹화할 화면을 먼저 선택해 주세요', body: 'PulseClip을 열어 캡처 소스를 선택하면 리플레이를 켤 수 있습니다.' });
       return false;
     }
     setBusy(true);
     try {
       await engine.start(source, captureSettings);
-      showToast('success', '리플레이 준비가 켜졌습니다', `${captureSettings.hotkeys.saveReplay}을 눌러 최근 순간을 저장하세요.`);
+      showToast('success', message, `${displayShortcut(captureSettings.hotkeys.saveReplay)}을 눌러 최근 순간을 저장하세요.`);
       return true;
     } catch (error) {
       showToast('error', '캡처를 시작하지 못했습니다', messageOf(error));
+      signal('failed', { title: '리플레이를 켜지 못했습니다', body: messageOf(error) });
       return false;
     } finally {
       setBusy(false);
@@ -366,38 +430,67 @@ export default function App() {
   };
 
   const toggleRecording = async () => {
-    if (busyRef.current || editor.editing) return;
+    if (deferHotkey('toggleRecording')) return;
+    if (editor.editing) {
+      showToast('info', '클립 편집을 저장하는 중입니다', '편집이 끝난 뒤 녹화를 시작해 주세요.');
+      signal('failed', { title: '녹화를 시작하지 않았습니다', body: '클립 편집 저장이 끝난 뒤 다시 시도해 주세요.' });
+      return;
+    }
     setBusy(true);
     try {
       if (engine.isRecording()) {
         await engine.stopRecording();
         showToast('success', '녹화 파일을 저장했습니다');
+        signal('stopped');
         return;
       }
       if (!engine.isActive()) {
         if (!selectedSource || !settings) {
           setSourcePickerOpen(true);
+          signal('failed', { title: '녹화할 화면을 먼저 선택해 주세요', body: 'PulseClip을 열어 캡처 소스를 선택해 주세요.' });
           return;
         }
         await engine.start(selectedSource, settings);
       }
       await engine.startRecording();
-      showToast('info', '녹화를 시작했습니다', `${settings?.hotkeys.toggleRecording ?? 'F9'}을 다시 누르면 저장합니다.`);
+      showToast('info', '녹화를 시작했습니다', `${displayShortcut(settings?.hotkeys.toggleRecording ?? 'F9')}을 다시 누르면 저장합니다.`);
+      signal('started');
     } catch (error) {
       showToast('error', '녹화 동작을 완료하지 못했습니다', messageOf(error));
+      signal('failed', { title: '녹화 동작을 완료하지 못했습니다', body: messageOf(error) });
     } finally {
       setBusy(false);
     }
   };
 
   const saveReplay = async () => {
-    if (busyRef.current) return;
+    if (deferHotkey('saveReplay')) return;
+    if (!engine.isActive()) {
+      // The user expects F8 to work. Turn replay on so the next press does.
+      // Without a source, startCapture opens the picker and signals by itself.
+      if (selectedSource && settings) {
+        showToast('info', '리플레이가 꺼져 있어 저장할 장면이 없습니다', '지금부터 최근 장면을 모으도록 리플레이를 켭니다.');
+        signal('failed', {
+          title: '리플레이가 꺼져 있었습니다',
+          body: '지금부터 최근 장면을 모읍니다. 잠시 후 다시 저장해 주세요.',
+        });
+      }
+      await startCapture();
+      return;
+    }
+    if (engine.getTelemetry().phase === 'recovering') {
+      showToast('info', '장치 연결을 복구하는 중입니다', '복구가 끝나면 다시 저장해 주세요.');
+      signal('failed', { title: '장치 연결을 복구하는 중입니다', body: '복구가 끝나면 다시 저장해 주세요.' });
+      return;
+    }
     setBusy(true);
     try {
       const clip = await engine.saveReplay();
       showToast('success', '리플레이를 저장했습니다', clip.title);
+      signal('saved');
     } catch (error) {
       showToast('error', '리플레이를 저장하지 못했습니다', messageOf(error));
+      signal('failed', { title: '리플레이를 저장하지 못했습니다', body: messageOf(error) });
     } finally {
       setBusy(false);
     }
@@ -442,6 +535,14 @@ export default function App() {
   actionsRef.current = {
     saveReplay: () => void saveReplay(),
     toggleRecording: () => void toggleRecording(),
+    startCapture: () => {
+      if (engine.isActive() || busyRef.current) return;
+      void startCapture();
+    },
+    resumeCapture: () => {
+      if (engine.isActive() || busyRef.current || !selectedSource) return;
+      void startCapture(selectedSource, settings, '돌아오셨네요. 리플레이를 다시 켰습니다');
+    },
     stopCapture,
     diskSafetyStop: () => void handleDiskSafetyStop(),
     shutdown,
@@ -486,7 +587,7 @@ export default function App() {
       setSettings(result.settings);
       setShortcutRegistration(result.shortcutRegistration);
       await engine.start(source, result.settings);
-      showToast('success', 'PulseClip이 준비되었습니다', `${result.settings.hotkeys.saveReplay}을 눌러 최근 순간을 저장하세요.`);
+      showToast('success', 'PulseClip이 준비되었습니다', `${displayShortcut(result.settings.hotkeys.saveReplay)}을 눌러 최근 순간을 저장하세요.`);
     } catch (error) {
       showToast('error', '초기 설정을 완료하지 못했습니다', messageOf(error));
     } finally {
@@ -552,7 +653,11 @@ export default function App() {
       setClips(result.clips);
       setStorage(result.storage);
       if (selectedClip?.id === clip.id) setSelectedClip(null);
-      showToast('success', '클립을 삭제했습니다', clip.title);
+      showToast(
+        'success',
+        result.trashed ? '클립을 휴지통으로 옮겼습니다' : '클립을 영구 삭제했습니다',
+        result.trashed ? `${clip.title} · Windows 휴지통에서 되살릴 수 있습니다.` : `${clip.title} · 이 위치에는 휴지통이 없습니다.`,
+      );
     } catch (error) {
       showToast('error', '클립을 삭제하지 못했습니다', messageOf(error));
     }
@@ -566,6 +671,12 @@ export default function App() {
     }
   };
 
+  const dragClipOut = (clip: Clip) => {
+    void window.pulseClip.startClipDrag(clip.id).catch((error) =>
+      showToast('error', '클립을 끌어다 놓을 수 없습니다', messageOf(error)),
+    );
+  };
+
   const openClipExternally = async (clip: Clip) => {
     try {
       await window.pulseClip.openClip(clip.id);
@@ -573,6 +684,12 @@ export default function App() {
       showToast('error', '기본 플레이어에서 열지 못했습니다', messageOf(error));
     }
   };
+
+  const suspendShortcuts = useCallback((suspended: boolean) => {
+    void window.pulseClip.suspendShortcuts(suspended)
+      .then(registration => { if (!suspended) setShortcutRegistration(registration); })
+      .catch(() => undefined);
+  }, []);
 
   const navigateToPage = (next: NavigationPage) => {
     if (next === page) return;
@@ -651,7 +768,10 @@ export default function App() {
             previewStream={engine.getPreviewStream()}
             clips={clips}
             storage={storage}
+            shortcutRegistration={shortcutRegistration}
             busy={busy}
+            readAudioLevels={() => engine.getAudioLevels()}
+            onOpenSettings={() => navigateToPage('settings')}
             onToggleBuffer={() => void toggleBuffer()}
             onToggleRecording={() => void toggleRecording()}
             onSaveReplay={() => void saveReplay()}
@@ -663,7 +783,7 @@ export default function App() {
         {page === 'clips' && (
           <ClipLibrary
             clips={clips}
-            replayHotkey={settings.hotkeys.saveReplay}
+            replayHotkey={displayShortcut(settings.hotkeys.saveReplay)}
             onGoHome={() => setPage('home')}
             onRefresh={() => void refreshLibrary().catch(error => showToast('error', '목록을 새로고치지 못했습니다', messageOf(error)))}
             onOpen={setSelectedClip}
@@ -671,6 +791,7 @@ export default function App() {
             onReveal={(clip) => void revealClip(clip)}
             onOpenExternal={(clip) => void openClipExternally(clip)}
             onDelete={setDeleteCandidate}
+            onDragOut={dragClipOut}
           />
         )}
         {page === 'diagnostics' && (
@@ -691,6 +812,8 @@ export default function App() {
             saving={busy || editor.editing}
             captureActive={captureActive}
             recording={recording}
+            version={bootstrap.appVersion}
+            onSuspendShortcuts={suspendShortcuts}
             onSave={(draft) => void saveSettings(draft)}
             onChooseOutputFolder={() => void chooseOutputFolder()}
             onDirtyChange={setSettingsDirty}
@@ -733,12 +856,13 @@ export default function App() {
         onReveal={(clip) => void revealClip(clip)}
         onOpenExternal={(clip) => void openClipExternally(clip)}
         onDelete={setDeleteCandidate}
+        onDragOut={dragClipOut}
       />
       <ConfirmDialog
         open={Boolean(deleteCandidate)}
         title="이 클립을 삭제할까요?"
-        description="영상 파일과 PulseClip 메타데이터가 함께 삭제되며 되돌릴 수 없습니다."
-        confirmLabel="클립 삭제"
+        description="영상 파일을 Windows 휴지통으로 옮깁니다. 휴지통이 없는 위치(네트워크 드라이브 등)라면 영구 삭제됩니다."
+        confirmLabel="휴지통으로 이동"
         onCancel={() => setDeleteCandidate(null)}
         onConfirm={() => void confirmDelete()}
       />

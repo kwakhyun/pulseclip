@@ -63,7 +63,7 @@ export function DiagnosticsPage({
     <section className="page diagnostics-page">
       <header className="diagnostics-header">
         <div>
-          <span className="eyebrow">SYSTEM HEALTH</span>
+          <span className="eyebrow">녹화 준비 상태</span>
           <h1>상태 점검</h1>
           <p>녹화 장치, 코덱, 저장 공간과 단축키를 한 번에 확인합니다.</p>
         </div>

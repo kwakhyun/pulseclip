@@ -33,6 +33,8 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   sync.writeFileSync(path.join(temporary, 'profile', 'settings.json'), JSON.stringify({
     ...createDefaultSettings(path.join(temporary, 'videos')), completedOnboarding: true,
     selectedSourceId: 'screen:0:0', selectedSourceName: '테스트 화면', showNotifications: false,
+    // Replay auto-start would capture before the synthetic media is installed.
+    autoStartBuffer: false, playSounds: false,
   }));
   process.argv.push('--hidden');
   const windowReady = new Promise(resolve => app.once('browser-window-created', (_, window) => {
@@ -129,6 +131,8 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     await click('홈');
     await click('리플레이 준비 켜기');
     await until('document.querySelector(".live-badge")?.textContent.includes("리플레이 준비됨")', 20000);
+    await until('parseFloat(document.querySelector(".buffer-track > span")?.style.width || "0") > 0', 5000);
+    assert.ok(await run('Boolean(document.querySelector(".level-meter"))'), 'Live audio meter is visible while replay is on');
     const audioEncoder = await run('window.__smokeCodecs.find(codec => codec.name === "AudioEncoder" && codec.outputs > 0)');
     assert.equal(audioEncoder.config.sampleRate, monoAudio ? 44100 : 48000);
     assert.equal(audioEncoder.config.numberOfChannels, monoAudio ? 1 : 2);
@@ -206,8 +210,33 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     await run(`(() => {const input=document.querySelector('[aria-label="녹화 시작/종료 단축키"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'F8'); input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
     await until('document.querySelector(".inline-error")?.textContent.includes("서로 다른 단축키")');
     assert.ok(await run('document.querySelector(".save-settings").disabled'));
+    // A bare letter would swallow typing in every other app.
+    await run(`(() => {const input=document.querySelector('[aria-label="녹화 시작/종료 단축키"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'K'); input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+    await until('document.querySelector(".inline-error")?.textContent.includes("Ctrl 또는 Alt")');
+    assert.ok(await run('document.querySelector(".save-settings").disabled'));
     await click('변경사항 되돌리기');
-    console.log('Desktop media: source recovery, recording + simultaneous replay, rename, trim, cancel, original preservation, MP4 range/playback, minimum window layout, settings persistence and shortcut validation passed.');
+    // Hotkeys must never be silently ignored. With replay off, F8 turns it on.
+    const titlebar = text => `document.querySelector(".titlebar-status")?.textContent.includes(${JSON.stringify(text)})`;
+    window.webContents.send('shortcut:save-replay');
+    await until(titlebar('리플레이 준비됨'), 20000);
+    assert.ok(await run('[...document.querySelectorAll(".toast-info")].some(toast => toast.textContent.includes("리플레이가 꺼져"))'));
+    // Returning from a lock screen restarts replay the user had running.
+    window.webContents.send('capture:stop-requested');
+    await until(titlebar('대기 중'));
+    window.webContents.send('capture:resume-requested');
+    await until(titlebar('리플레이 준비됨'), 20000);
+    await wait(2500);
+    // F9 pressed while the F8 save is still running is queued, not dropped.
+    window.webContents.send('shortcut:save-replay');
+    window.webContents.send('shortcut:toggle-recording');
+    await until(titlebar('녹화 중'), 15000);
+    await wait(1500);
+    window.webContents.send('shortcut:toggle-recording');
+    await until(titlebar('리플레이 준비됨'), 15000);
+    await until('window.pulseClip.listClips().then(result => result.clips.length === 5)', 15000);
+    window.webContents.send('capture:stop-requested');
+    await until(titlebar('대기 중'));
+    console.log('Desktop media: source recovery, replay buffer gauge and audio meter, recording + simultaneous replay, rename, trim, cancel, original preservation, MP4 range/playback, minimum window layout, settings persistence, shortcut validation, F8-while-off, resume after lock and queued hotkeys passed.');
   }
   console.log('Desktop smoke: bootstrap, navigation, settings, diagnostics passed.');
   app.exit(0);

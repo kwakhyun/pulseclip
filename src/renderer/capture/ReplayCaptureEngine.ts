@@ -15,6 +15,7 @@ import {
   type VideoCodec,
 } from 'mediabunny';
 import { LivePacketWriter } from './LivePacketWriter';
+import { AudioLevelMeter, type AudioLevels } from './audio-level-meter';
 import { IpcAppendSink } from './IpcAppendSink';
 import { codecLabel, delay, errorMessage } from './media-utils';
 import { resolutionSize } from '../../shared/settings';
@@ -70,6 +71,7 @@ export class ReplayCaptureEngine {
   private microphoneStream: MediaStream | null = null;
   private previewStream: MediaStream | null = null;
   private mixedAudioContext: AudioContext | null = null;
+  private levelMeter: AudioLevelMeter | null = null;
   private encoderOutput: Output | null = null;
   private videoTrackSource: MediaStreamVideoTrackSource | null = null;
   private audioTrackSource: MediaStreamAudioTrackSource | null = null;
@@ -109,6 +111,10 @@ export class ReplayCaptureEngine {
 
   getPreviewStream(): MediaStream | null {
     return this.previewStream;
+  }
+
+  getAudioLevels(): AudioLevels {
+    return this.levelMeter?.read() ?? { system: null, microphone: null };
   }
 
   getTelemetry(): CaptureTelemetry {
@@ -195,6 +201,11 @@ export class ReplayCaptureEngine {
         this.scheduleRecovery('마이크 연결이 끊겼습니다.');
       });
       this.watchDeviceChanges(settings);
+      try {
+        this.levelMeter = new AudioLevelMeter(displayAudioTrack, microphoneTrack, settings.microphoneGain);
+      } catch {
+        this.levelMeter = null;
+      }
       const audioTrack = await this.createMixedAudioTrack(
         displayAudioTrack,
         microphoneTrack,
@@ -623,6 +634,8 @@ export class ReplayCaptureEngine {
     this.microphoneStream = null;
     await this.mixedAudioContext?.close().catch(() => undefined);
     this.mixedAudioContext = null;
+    await this.levelMeter?.close();
+    this.levelMeter = null;
     this.releasingMedia = false;
   }
 

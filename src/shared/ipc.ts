@@ -14,6 +14,8 @@ export const IPC = {
   checkForUpdates: 'app:check-updates',
   openReleasePage: 'app:open-release-page',
   deleteClip: 'clips:delete',
+  startClipDrag: 'clips:start-drag',
+  suspendShortcuts: 'shortcuts:suspend',
   revealClip: 'clips:reveal',
   openClip: 'clips:open',
   beginFile: 'files:begin',
@@ -29,8 +31,12 @@ export const IPC = {
 export const APP_EVENTS = [
   'shortcut:save-replay',
   'shortcut:toggle-recording',
+  'capture:start-requested',
   'capture:stop-requested',
+  'capture:resume-requested',
   'storage:safety-stop-requested',
+  'storage:cleanup-completed',
   'app:shutdown-requested',
   'app:show',
+  'window:maximized-changed',
 ] as const;

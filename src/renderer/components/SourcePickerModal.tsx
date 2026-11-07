@@ -33,7 +33,7 @@ export function SourcePickerModal({
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section ref={dialogRef} tabIndex={-1} className="modal source-modal" role="dialog" aria-modal="true" aria-labelledby="source-title">
         <header className="modal-header">
-          <div><span className="eyebrow">CAPTURE SOURCE</span><h2 id="source-title">어떤 화면을 녹화할까요?</h2><p>게임이 전체 화면이면 모니터, 창 모드면 해당 창을 선택하세요.</p></div>
+          <div><span className="eyebrow">캡처 소스</span><h2 id="source-title">어떤 화면을 녹화할까요?</h2><p>게임이 전체 화면이면 모니터, 창 모드면 해당 창을 선택하세요.</p></div>
           <button type="button" className="modal-close" aria-label="소스 선택 닫기" onClick={onClose}><X size={19} /></button>
         </header>
         <div className="source-toolbar">

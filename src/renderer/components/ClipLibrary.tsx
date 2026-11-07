@@ -20,7 +20,7 @@ export function ClipLibrary({ clips, replayHotkey, onGoHome, onRefresh, ...actio
   const filtered = useMemo(() => queryClips(clips, query, filter, sort), [clips, query, filter, sort]);
   const bytes = filtered.reduce((sum, clip) => sum + clip.bytes, 0);
   return <div className="page clips-page">
-    <div className="library-header"><div><span className="eyebrow">YOUR MOMENTS</span><h1>내 클립</h1><p>장면을 찾고, 필요한 구간만 잘라 새 클립으로 남기세요.</p></div><div className="library-count"><Film size={18} /><strong>{clips.length}</strong><span>개</span><button className="icon-button" type="button" aria-label="클립 목록 새로고침" onClick={onRefresh}><RefreshCw size={17} /></button></div></div>
+    <div className="library-header"><div><span className="eyebrow">클립 보관함</span><h1>내 클립</h1><p>장면을 찾고, 필요한 구간만 잘라 새 클립으로 남기세요. 카드를 Discord나 탐색기로 끌어다 놓으면 바로 공유됩니다.</p></div><div className="library-count"><Film size={18} /><strong>{clips.length}</strong><span>개</span><button className="icon-button" type="button" aria-label="클립 목록 새로고침" onClick={onRefresh}><RefreshCw size={17} /></button></div></div>
     <div className="library-toolbar">
       <div className="filter-tabs" role="group" aria-label="클립 필터">{([
         ['all', '전체'], ['replay', '리플레이'], ['recording', '녹화'], ['edited', '편집'], ['recovered', '복구'], ['favorite', '즐겨찾기'],
