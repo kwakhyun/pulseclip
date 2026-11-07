@@ -406,6 +406,8 @@ function dragIcon(): NativeImage {
 
 function announceStorageCleanup(result: StorageCleanupResult): void {
   sendAppEvent('storage:cleanup-completed', result);
+  // The renderer shows a toast; a Windows notification is for the background.
+  if (mainWindow?.isFocused()) return;
   if (!settingsStore.get().showNotifications || !Notification.isSupported()) return;
   new Notification({
     title: '저장 한도를 넘어 오래된 클립을 정리했습니다',
@@ -570,14 +572,24 @@ function trayStatusLabel(status: RuntimeStatus): string {
 }
 
 function setupPowerEvents(): void {
+  let resumeTimer: NodeJS.Timeout | null = null;
+  const isLocked = () => powerMonitor.getSystemIdleState(1) === 'locked';
   const requestStop = () => {
+    if (resumeTimer) {
+      clearTimeout(resumeTimer);
+      resumeTimer = null;
+    }
     if (powerResume.onSuspendOrLock(runtimeStatus.phase)) sendAppEvent('capture:stop-requested');
   };
   const requestResume = (event: 'resume' | 'unlock-screen') => {
-    const locked = powerMonitor.getSystemIdleState(1) === 'locked';
-    if (!powerResume.onResumeOrUnlock(event, locked)) return;
-    // Give Windows a moment to restore displays and audio endpoints.
-    setTimeout(() => sendAppEvent('capture:resume-requested'), RESUME_SETTLE_MS);
+    if (!powerResume.onResumeOrUnlock(event, isLocked())) return;
+    // Give Windows a moment to restore displays and audio endpoints. A lock or
+    // sleep in the meantime cancels this and the next unlock restarts instead.
+    if (resumeTimer) clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(() => {
+      resumeTimer = null;
+      if (powerResume.onSettled(isLocked())) sendAppEvent('capture:resume-requested');
+    }, RESUME_SETTLE_MS);
   };
   powerMonitor.on('suspend', requestStop);
   powerMonitor.on('lock-screen', requestStop);

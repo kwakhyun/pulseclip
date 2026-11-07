@@ -84,6 +84,15 @@ export interface BootstrapData {
   storage: StorageStats;
   diskSpace: DiskSpaceStatus;
   shortcutRegistration: ShortcutRegistration;
+  /** Saved hotkeys that were replaced because they are no longer allowed. */
+  hotkeyReplacements: HotkeyReplacement[];
+  windowMaximized: boolean;
+}
+
+export interface HotkeyReplacement {
+  action: keyof HotkeySettings;
+  previous: string;
+  current: string;
 }
 
 export interface DiskSpaceStatus {
@@ -176,11 +185,16 @@ export interface StorageCleanupResult {
   bytes: number;
 }
 
+/**
+ * trashed: moved to the Recycle Bin. deleted: removed for good (asked for).
+ * trash-unavailable: Windows refused the Recycle Bin and nothing was removed.
+ */
+export type ClipDeleteOutcome = 'trashed' | 'deleted' | 'trash-unavailable';
+
 export interface DeleteClipResult {
   clips: Clip[];
   storage: StorageStats;
-  /** False when the file could not be moved to the Recycle Bin and was removed permanently. */
-  trashed: boolean;
+  outcome: ClipDeleteOutcome;
 }
 
 export interface AppEventMap {
@@ -216,7 +230,8 @@ export interface PulseClipApi {
   beginTrim(request: TrimFileRequest): Promise<BeginFileResult>;
   checkForUpdates(): Promise<UpdateInfo>;
   openReleasePage(): Promise<void>;
-  deleteClip(id: string): Promise<DeleteClipResult>;
+  /** Moves to the Recycle Bin; `permanent` skips it after the user agreed. */
+  deleteClip(id: string, permanent?: boolean): Promise<DeleteClipResult>;
   startClipDrag(id: string): Promise<void>;
   suspendShortcuts(suspended: boolean): Promise<ShortcutRegistration>;
   revealClip(id: string): Promise<void>;

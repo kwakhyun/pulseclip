@@ -3,15 +3,17 @@ import path from 'node:path';
 import {
   createDefaultSettings,
   sanitizeSettings,
+  sanitizeShortcut,
   hotkeyProblem,
 } from '../shared/settings';
-import type { AppSettings } from '../shared/types';
+import type { AppSettings, HotkeyReplacement, HotkeySettings } from '../shared/types';
 import type { Logger } from './logger';
 import { AsyncQueue } from '../shared/async-queue';
 
 export class SettingsStore {
   private value: AppSettings;
   private readonly writes = new AsyncQueue();
+  private hotkeyReplacements: HotkeyReplacement[] = [];
 
   constructor(
     private readonly filePath: string,
@@ -41,7 +43,9 @@ export class SettingsStore {
     }
 
     try {
-      this.value = sanitizeSettings(JSON.parse(raw), this.value);
+      const stored: unknown = JSON.parse(raw);
+      this.value = sanitizeSettings(stored, this.value);
+      this.hotkeyReplacements = findHotkeyReplacements(stored, this.value.hotkeys);
     } catch (error) {
       const backupPath = `${this.filePath}.corrupt-${timestampForFileName()}`;
       await rename(this.filePath, backupPath);
@@ -51,7 +55,19 @@ export class SettingsStore {
       });
       await this.persist(this.value);
     }
+    if (this.hotkeyReplacements.length > 0) {
+      this.logger.warn('Replaced saved hotkeys that are no longer allowed', { replacements: this.hotkeyReplacements });
+      // Save the safe keys so the notice is shown once, not on every launch.
+      await this.persist(this.value).catch(error => this.logger.warn('Could not save replaced hotkeys', { error }));
+    }
     return this.get();
+  }
+
+  /** Hotkeys replaced while loading; returned once so the renderer explains them a single time. */
+  takeHotkeyReplacements(): HotkeyReplacement[] {
+    const replacements = this.hotkeyReplacements;
+    this.hotkeyReplacements = [];
+    return replacements;
   }
 
   async update(patch: Partial<AppSettings>): Promise<AppSettings> {
@@ -111,4 +127,16 @@ function isFileNotFound(error: unknown): boolean {
 
 function timestampForFileName(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+function findHotkeyReplacements(stored: unknown, current: HotkeySettings): HotkeyReplacement[] {
+  const hotkeys = typeof stored === 'object' && stored !== null
+    ? (stored as { hotkeys?: Partial<Record<keyof HotkeySettings, unknown>> }).hotkeys
+    : undefined;
+  if (typeof hotkeys !== 'object' || hotkeys === null) return [];
+  return (['saveReplay', 'toggleRecording'] as const).flatMap(action => {
+    const previous = hotkeys[action];
+    if (typeof previous !== 'string' || sanitizeShortcut(previous, '') === current[action]) return [];
+    return [{ action, previous: previous.slice(0, 64), current: current[action] }];
+  });
 }

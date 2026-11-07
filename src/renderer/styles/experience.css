@@ -70,7 +70,15 @@ kbd { font-size: 11px; }
 .buffer-button.is-on:hover:not(:disabled) { border-color: #4a5060; background: #161a22; }
 .replay-button.primary { min-height: 52px; font-size: 14px; }
 .replay-button kbd,
-.recording-button kbd { background: rgba(0, 0, 0, 0.25); }
+.recording-button kbd {
+  /* In the flow, so a long combination such as Ctrl + Alt + Shift + F12 never covers the label. */
+  position: static;
+  flex-shrink: 0;
+  margin-left: auto;
+  background: rgba(0, 0, 0, 0.25);
+}
+.replay-button > span,
+.recording-button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .replay-button.primary kbd { border-color: rgba(255, 255, 255, 0.45); color: white; }
 .recording-button { width: 100%; min-height: 46px; background: transparent; }
 .recording-button.is-recording { color: white; }
@@ -81,7 +89,7 @@ kbd { font-size: 11px; }
   font-variant-numeric: tabular-nums;
   font-size: 13px;
 }
-.recording-button .record-timer + kbd { position: static; }
+.recording-button .record-timer + kbd { margin-left: 0; }
 .signal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; }
 .signal-item { min-height: 0; align-items: flex-start; padding: 12px; }
 .signal-item > div { flex: 1; min-width: 0; }
@@ -112,10 +120,9 @@ kbd { font-size: 11px; }
 .level-meter > span {
   position: absolute;
   inset: 0;
-  transform: scaleX(0);
-  transform-origin: left center;
+  /* Reveal a fixed gradient instead of scaling it, so only loud input reaches the red end. */
+  clip-path: inset(0 100% 0 0);
   background: linear-gradient(90deg, var(--green-strong) 0%, var(--green) 70%, #ffd166 88%, var(--coral) 100%);
-  background-size: 100% 100%;
 }
 .level-meter > span[data-hot='true'] { box-shadow: 0 0 8px rgba(255, 99, 88, 0.6); }
 
@@ -191,6 +198,10 @@ kbd { font-size: 11px; }
 .onboarding-toggle small { font-size: 11px; color: var(--text-faint); }
 .onboarding-no-source { font-size: 12px; color: var(--text-faint); }
 .onboarding-no-source .button { height: 36px; margin-top: 4px; }
+/* The modal has a fixed height: the step scrolls so the footer buttons always stay inside it. */
+.onboarding-modal { grid-template-rows: minmax(0, 1fr); }
+.onboarding-content { min-height: 0; }
+.onboarding-step { overflow-y: auto; }
 .onboarding-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
 .onboarding-presets button {
   padding: 12px;
@@ -240,9 +251,12 @@ kbd { font-size: 11px; }
   pointer-events: none;
 }
 .trim-timeline input[type='range'].trim-handle {
+  /* Wider than the track by one thumb, so the thumb centre travels the same
+     0-100% as the selection, playhead and click-to-seek. */
   position: absolute;
-  inset: 0;
-  width: 100%;
+  top: 0;
+  left: -7px;
+  width: calc(100% + 14px);
   height: 100%;
   margin: 0;
   background: transparent;
@@ -263,7 +277,9 @@ kbd { font-size: 11px; }
   cursor: ew-resize;
   pointer-events: auto;
 }
+.trim-timeline input[type='range'].trim-handle.is-top { z-index: 2; }
 .trim-timeline input[type='range'].trim-handle:focus-visible { outline: none; }
+.trim-panel:focus { outline: none; }
 .trim-timeline input[type='range'].trim-handle:focus-visible::-webkit-slider-thumb { outline: 3px solid #ffaaa3; outline-offset: 2px; }
 .trim-scale { display: flex; justify-content: space-between; color: var(--text-faint); font-size: 11px; font-variant-numeric: tabular-nums; }
 .trim-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
@@ -294,5 +310,4 @@ kbd { font-size: 11px; }
 @media (max-width: 1220px) {
   .setting-control { justify-content: flex-start; }
   .trim-fields { grid-template-columns: 1fr; }
-  .onboarding-presets { grid-template-columns: 1fr; }
 }

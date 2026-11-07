@@ -7,6 +7,7 @@ import {
   rename,
   rm,
   stat,
+  utimes,
   writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
@@ -14,6 +15,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   BeginFileRequest,
   Clip,
+  ClipDeleteOutcome,
   ClipKind,
   StorageCleanupResult,
   StorageStats,
@@ -36,6 +38,8 @@ export interface ClipRepositoryOptions {
 
 const VIDEO_PREFIX = 'PulseClip_';
 const SIDECAR_SUFFIX = '.pulseclip.json';
+/** Metadata of a clip in the Recycle Bin is kept this long so a restored clip keeps its name and favorite. */
+const ORPHAN_SIDECAR_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export class ClipRepository {
   private readonly operations = new AsyncQueue();
@@ -168,34 +172,50 @@ export class ClipRepository {
     });
   }
 
-  /** Moves the clip to the Recycle Bin when possible. Resolves to whether it was recoverable. */
-  async delete(id: string): Promise<{ trashed: boolean }> {
+  /**
+   * Moves the clip to the Recycle Bin. When Windows refuses (no Recycle Bin on
+   * the drive, or the file is larger than the bin allows) nothing is removed
+   * and the caller must ask before deleting permanently.
+   */
+  async delete(id: string, permanent = false): Promise<ClipDeleteOutcome> {
     return this.operations.run(async () => {
       const folder = this.settings.get().outputFolder;
       const clip = (await this.listInFolder(folder)).find(item => item.id === id);
       if (!clip) throw new Error('클립을 찾을 수 없습니다.');
-      return this.deleteInFolder(clip, folder, true);
+      if (permanent || !this.options.trash) {
+        await this.deleteInFolder(clip, folder);
+        return 'deleted';
+      }
+      return this.trashInFolder(clip, folder, this.options.trash);
     });
   }
 
-  private async deleteInFolder(clip: Clip, folder: string, preferTrash: boolean): Promise<{ trashed: boolean }> {
+  private async trashInFolder(clip: Clip, folder: string, trash: (filePath: string) => Promise<void>): Promise<ClipDeleteOutcome> {
     if (this.protectedIds.has(clip.id)) throw new Error('클립을 내보내는 중입니다. 완료 후 삭제해 주세요.');
     const filePath = path.join(folder, clip.fileName);
-    let trashed = false;
-    if (preferTrash && this.options.trash) {
-      try {
-        await this.options.trash(filePath);
-        trashed = true;
-      } catch (error) {
-        // Network shares and some removable drives have no Recycle Bin.
-        this.logger.warn('Recycle Bin unavailable; deleting clip permanently', { id: clip.id, error });
-      }
+    try {
+      await trash(filePath);
+    } catch (error) {
+      this.logger.warn('Recycle Bin refused the clip; nothing was deleted', { id: clip.id, error });
+      return 'trash-unavailable';
     }
-    if (!trashed) await rm(filePath, { force: false });
+    this.mediaIndex.paths.delete(clip.id);
+    // Keep the sidecar: if the MP4 is restored, it is matched again with its
+    // title and favorite. Listing ignores sidecars without a video. Touch it so
+    // orphan pruning counts from the delete, not from the last edit.
+    const now = new Date();
+    await utimes(metadataPath(filePath), now, now).catch(() => undefined);
+    this.logger.info('Clip moved to the Recycle Bin', { id: clip.id, fileName: clip.fileName });
+    return 'trashed';
+  }
+
+  private async deleteInFolder(clip: Clip, folder: string): Promise<void> {
+    if (this.protectedIds.has(clip.id)) throw new Error('클립을 내보내는 중입니다. 완료 후 삭제해 주세요.');
+    const filePath = path.join(folder, clip.fileName);
+    await rm(filePath, { force: false });
     this.mediaIndex.paths.delete(clip.id);
     await rm(metadataPath(filePath), { force: true });
-    this.logger.info('Clip deleted', { id: clip.id, fileName: clip.fileName, trashed });
-    return { trashed };
+    this.logger.info('Clip deleted permanently', { id: clip.id, fileName: clip.fileName });
   }
 
   async storageStats(clips?: Clip[]): Promise<StorageStats> {
@@ -238,7 +258,7 @@ export class ClipRepository {
       if (used <= target) break;
       try {
         // Cleanup exists to free disk space, so it cannot use the Recycle Bin.
-        await this.deleteInFolder(clip, folder, false);
+        await this.deleteInFolder(clip, folder);
         used -= clip.bytes;
         result.count += 1;
         result.bytes += clip.bytes;
@@ -258,7 +278,12 @@ export class ClipRepository {
     const entries = await readdir(folder, { withFileTypes: true });
     let recoveredCount = 0;
 
+    const names = new Set(entries.map(entry => entry.name));
     for (const entry of entries) {
+      if (entry.isFile() && entry.name.startsWith(VIDEO_PREFIX) && entry.name.endsWith(SIDECAR_SUFFIX)) {
+        await this.pruneOrphanSidecar(folder, entry.name, names);
+        continue;
+      }
       if (
         !entry.isFile() ||
         !entry.name.startsWith(VIDEO_PREFIX) ||
@@ -300,6 +325,18 @@ export class ClipRepository {
       }
     }
     return recoveredCount;
+  }
+
+  /** Removes metadata left behind by a clip that stayed in the Recycle Bin for a month. */
+  private async pruneOrphanSidecar(folder: string, name: string, names: ReadonlySet<string>): Promise<void> {
+    if (names.has(name.slice(0, -SIDECAR_SUFFIX.length))) return;
+    const sidecarPath = path.join(folder, name);
+    try {
+      const details = await stat(sidecarPath);
+      if (Date.now() - details.mtimeMs > ORPHAN_SIDECAR_TTL_MS) await rm(sidecarPath, { force: true });
+    } catch (error) {
+      this.logger.warn('Could not prune orphaned clip metadata', { name, error });
+    }
   }
 
   private async readOrCreateMetadata(filePath: string): Promise<Clip> {

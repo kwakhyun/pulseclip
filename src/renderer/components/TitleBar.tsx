@@ -5,10 +5,12 @@ import { phaseLabel } from '../utils';
 
 interface TitleBarProps {
   telemetry: CaptureTelemetry;
+  /** The window can already be maximized when the renderer reloads after a crash. */
+  initialMaximized: boolean;
 }
 
-export function TitleBar({ telemetry }: TitleBarProps) {
-  const [maximized, setMaximized] = useState(false);
+export function TitleBar({ telemetry, initialMaximized }: TitleBarProps) {
+  const [maximized, setMaximized] = useState(initialMaximized);
   useEffect(
     () => window.pulseClip.onAppEvent('window:maximized-changed', (state) => setMaximized(state.maximized)),
     [],

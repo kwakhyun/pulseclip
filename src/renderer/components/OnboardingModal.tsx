@@ -118,9 +118,18 @@ export function OnboardingModal({
               <span className="step-kicker">4 / {STEP_COUNT} · 준비</span>
               <h1>화질과 시작 방식을 고르세요.</h1>
               <p>게임이 버벅이면 성능 우선을 선택하세요. 설정에서 언제든 바꿀 수 있어요.</p>
-              <div className="onboarding-presets" role="radiogroup" aria-label="녹화 화질">
+              <div className="onboarding-presets" role="radiogroup" aria-label="녹화 화질" onKeyDown={event => {
+                // Radio pattern: one tab stop, arrow keys move and select.
+                const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+                if (!step) return;
+                event.preventDefault();
+                const index = QUALITY_PRESETS.findIndex(preset => preset.id === quality);
+                const next = QUALITY_PRESETS[(index + step + QUALITY_PRESETS.length) % QUALITY_PRESETS.length];
+                setQuality(next.id);
+                event.currentTarget.querySelector<HTMLElement>(`[data-preset="${next.id}"]`)?.focus();
+              }}>
                 {QUALITY_PRESETS.map(preset => (
-                  <button type="button" role="radio" key={preset.id} aria-checked={quality === preset.id} className={quality === preset.id ? 'selected' : ''} onClick={() => setQuality(preset.id)}>
+                  <button type="button" role="radio" key={preset.id} data-preset={preset.id} tabIndex={quality === preset.id ? 0 : -1} aria-checked={quality === preset.id} className={quality === preset.id ? 'selected' : ''} onClick={() => setQuality(preset.id)}>
                     <Gauge size={16} /><strong>{preset.name}</strong><small>{preset.description}</small>
                   </button>
                 ))}

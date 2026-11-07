@@ -78,6 +78,26 @@ export function sanitizeShortcut(value: unknown, fallback: string): string {
   return formatShortcut(parseShortcut(value)!);
 }
 
+/**
+ * Sanitizes a saved pair. A shortcut that is no longer allowed (v0.1.4 accepted
+ * bare letters) falls back to its default, but never onto the key the other
+ * action still uses, which would leave one action without a hotkey.
+ */
+export function sanitizeHotkeys(input: Partial<Record<keyof HotkeySettings, unknown>>, defaults: HotkeySettings): HotkeySettings {
+  const saveReplay = sanitizeShortcut(input.saveReplay, defaults.saveReplay);
+  const toggleRecording = sanitizeShortcut(input.toggleRecording, defaults.toggleRecording);
+  if (saveReplay !== toggleRecording) return { saveReplay, toggleRecording };
+  const saveKept = !shortcutProblem(input.saveReplay);
+  const recordKept = !shortcutProblem(input.toggleRecording);
+  if (saveKept && !recordKept) {
+    return { saveReplay, toggleRecording: [defaults.toggleRecording, defaults.saveReplay].find(key => key !== saveReplay)! };
+  }
+  if (recordKept && !saveKept) {
+    return { saveReplay: [defaults.saveReplay, defaults.toggleRecording].find(key => key !== toggleRecording)!, toggleRecording };
+  }
+  return { ...defaults };
+}
+
 export function hotkeyProblem(hotkeys: HotkeySettings): string | null {
   for (const value of Object.values(hotkeys)) {
     const problem = shortcutProblem(value);

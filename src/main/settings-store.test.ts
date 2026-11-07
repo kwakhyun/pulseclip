@@ -47,6 +47,23 @@ describe('SettingsStore persistence', () => {
     });
   });
 
+  it('replaces v0.1.4 single-letter hotkeys once and reports what changed', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-settings-'));
+    temporaryDirectories.push(directory);
+    const filePath = path.join(directory, 'settings.json');
+    await writeFile(filePath, JSON.stringify({ schemaVersion: 1, hotkeys: { saveReplay: 'K', toggleRecording: 'f8' } }), 'utf8');
+    const store = new SettingsStore(filePath, path.join(directory, 'clips'), new Logger(directory));
+
+    expect((await store.load()).hotkeys).toEqual({ saveReplay: 'F9', toggleRecording: 'F8' });
+    expect(store.takeHotkeyReplacements()).toEqual([{ action: 'saveReplay', previous: 'K', current: 'F9' }]);
+    expect(store.takeHotkeyReplacements()).toEqual([]);
+    expect(JSON.parse(await readFile(filePath, 'utf8')).hotkeys).toEqual({ saveReplay: 'F9', toggleRecording: 'F8' });
+
+    const reloaded = new SettingsStore(filePath, path.join(directory, 'clips'), new Logger(directory));
+    await reloaded.load();
+    expect(reloaded.takeHotkeyReplacements()).toEqual([]);
+  });
+
   it('keeps the previous in-memory settings when an update cannot be persisted', async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-settings-'));
     temporaryDirectories.push(directory);

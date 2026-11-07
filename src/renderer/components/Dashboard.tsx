@@ -382,7 +382,7 @@ function LevelMeter({ label, read }: { label: string; read: () => number | null 
       // Fast attack, slow release reads like a hardware meter.
       shown = level > shown ? level : shown * 0.9 + level * 0.1;
       if (barRef.current) {
-        barRef.current.style.transform = `scaleX(${shown.toFixed(3)})`;
+        barRef.current.style.clipPath = `inset(0 ${((1 - shown) * 100).toFixed(1)}% 0 0)`;
         barRef.current.dataset.hot = shown > 0.92 ? 'true' : 'false';
       }
       frame = requestAnimationFrame(tick);

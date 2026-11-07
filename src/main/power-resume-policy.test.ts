@@ -7,6 +7,28 @@ describe('PowerResumePolicy', () => {
     expect(policy.onSuspendOrLock('buffering')).toBe(true);
     expect(policy.onResumeOrUnlock('unlock-screen', false)).toBe(true);
     expect(policy.onResumeOrUnlock('unlock-screen', false)).toBe(false);
+    expect(policy.onSettled(false)).toBe(true);
+    expect(policy.onSettled(false)).toBe(false);
+  });
+
+  it('keeps the restart owed when the PC is locked again during the settle delay', () => {
+    const policy = new PowerResumePolicy();
+    policy.onSuspendOrLock('buffering');
+    expect(policy.onResumeOrUnlock('unlock-screen', false)).toBe(true);
+    // Win+L within two seconds: the engine is still idle, so nothing stops.
+    expect(policy.onSuspendOrLock('idle')).toBe(false);
+    expect(policy.onSettled(false)).toBe(false);
+    expect(policy.onResumeOrUnlock('unlock-screen', false)).toBe(true);
+    expect(policy.onSettled(false)).toBe(true);
+  });
+
+  it('waits for unlock when the screen locked before the delay ended without an event', () => {
+    const policy = new PowerResumePolicy();
+    policy.onSuspendOrLock('buffering');
+    policy.onResumeOrUnlock('resume', false);
+    expect(policy.onSettled(true)).toBe(false);
+    expect(policy.onResumeOrUnlock('unlock-screen', false)).toBe(true);
+    expect(policy.onSettled(false)).toBe(true);
   });
 
   it('remembers capture across lock followed by sleep and waits for unlock', () => {

@@ -93,7 +93,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
     handlers.push([channel, listener as (...args: never[]) => unknown]);
   };
 
-  handle(IPC.bootstrap, async () => {
+  handle(IPC.bootstrap, async (event) => {
     const currentClips = await clips.list();
     const result = {
       appVersion: app.getVersion(),
@@ -103,6 +103,9 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
       storage: await clips.storageStats(currentClips),
       diskSpace: await diskSafety.inspect(),
       shortcutRegistration: getShortcutRegistration(),
+      hotkeyReplacements: settings.takeHotkeyReplacements(),
+      // A crash-recovery reload keeps the window maximized; seed the title bar.
+      windowMaximized: BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false,
     };
     logger.info('Renderer bootstrap completed', { clipCount: currentClips.length });
     return result;
@@ -221,13 +224,13 @@ export function registerIpcHandlers(options: RegisterIpcOptions): () => void {
     return clips.setFavorite(validateId(id), requireBoolean(favorite, '즐겨찾기'));
   });
 
-  handle(IPC.deleteClip, async (_event, id: unknown) => {
-    const { trashed } = await clips.delete(validateId(id));
+  handle(IPC.deleteClip, async (_event, id: unknown, permanent: unknown) => {
+    const outcome = await clips.delete(validateId(id), requireBoolean(permanent ?? false, '영구 삭제'));
     const currentClips = await clips.list();
     return {
       clips: currentClips,
       storage: await clips.storageStats(currentClips),
-      trashed,
+      outcome,
     };
   });
 

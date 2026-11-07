@@ -37,7 +37,14 @@ function ClipPlayer({ clip, editing, progress, onClose, onFavorite, onReveal, on
   const [savingName, setSavingName] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const [rate, setRate] = useState(1);
+  // Both handles span the whole timeline; the one nearer the pointer goes on top
+  // so the start handle stays reachable when it sits on or right of the end handle.
+  const [topHandle, setTopHandle] = useState<'start' | 'end'>('end');
+  const trimPanelRef = useRef<HTMLElement>(null);
   useEffect(() => { if (videoRef.current) videoRef.current.playbackRate = rate; }, [rate]);
+  // Clicking "구간 잘라 저장" leaves focus on that toggle, where Space would close
+  // the panel again. Move focus into the panel so Space plays and I/O mark.
+  useEffect(() => { if (trimming) trimPanelRef.current?.focus({ preventScroll: true }); }, [trimming]);
   const rangeValid = Number.isFinite(start) && Number.isFinite(end) && start >= 0 && end <= duration && end - start >= MIN_TRIM_SECONDS;
   const setBoundary = (boundary: 'start' | 'end', value: number) => {
     if (!Number.isFinite(value)) return;
@@ -56,19 +63,22 @@ function ClipPlayer({ clip, editing, progress, onClose, onFavorite, onReveal, on
     void videoRef.current.play().catch(() => undefined);
   };
 
-  // I / O mark the selection like most editors; Space plays when focus is not
-  // on a control that already uses it.
+  // I / O mark the selection like most editors. Space plays unless focus is on
+  // a control that uses Space itself (buttons, the video's own controls).
   useEffect(() => {
     if (!trimming || editing) return;
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (event.ctrlKey || event.altKey || event.metaKey) return;
-      if (target?.closest('input, select, textarea, button, video')) return;
+      // Typing a time or a name; the range handles do not use these keys.
+      if (target?.closest('input:not([type="range"]), select, textarea, [contenteditable="true"]')) return;
       const key = event.key.toLowerCase();
       if (key === 'i') { event.preventDefault(); markAtPlayhead('start'); }
       else if (key === 'o') { event.preventDefault(); markAtPlayhead('end'); }
       else if (key === ' ') {
+        if (target?.closest('button, video, a')) return;
         event.preventDefault();
+        if (event.repeat) return;
         const video = videoRef.current;
         if (video) void (video.paused ? video.play().catch(() => undefined) : video.pause());
       }
@@ -112,7 +122,7 @@ function ClipPlayer({ clip, editing, progress, onClose, onFavorite, onReveal, on
           <button type="button" className={`button ${trimming ? 'ghost is-active' : 'ghost'}`} disabled={editing || mediaError || duration < MIN_TRIM_SECONDS} aria-pressed={trimming} onClick={() => setTrimming(!trimming)}><Scissors size={16} /> 구간 잘라 저장</button>
           <label>재생 속도 <select aria-label="재생 속도" value={rate} onChange={event => setRate(Number(event.target.value))}>{[0.5, 1, 1.5, 2].map(value => <option key={value} value={value}>{value}×</option>)}</select></label>
         </div>
-        {trimming && <section className="trim-panel" aria-label="클립 구간 편집">
+        {trimming && <section ref={trimPanelRef} tabIndex={-1} className="trim-panel" aria-label="클립 구간 편집">
           <div className="trim-heading">
             <div><strong>필요한 순간만 남기세요</strong><p>원본은 그대로 두고 새 MP4로 저장합니다. 구간에 따라 재인코딩될 수 있습니다.</p></div>
             <span>{formatDuration((end - start) * 1000)} 선택됨</span>
@@ -124,12 +134,19 @@ function ClipPlayer({ clip, editing, progress, onClose, onFavorite, onReveal, on
               const bounds = event.currentTarget.getBoundingClientRect();
               seek(((event.clientX - bounds.left) / bounds.width) * duration);
             }}
+            onPointerMove={event => {
+              if (event.buttons !== 0 || duration <= 0) return;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const at = ((event.clientX - bounds.left) / bounds.width) * duration;
+              const nearer = at < (start + end) / 2 ? 'start' : 'end';
+              if (nearer !== topHandle) setTopHandle(nearer);
+            }}
           >
             <div className="trim-track" />
             <div className="trim-selection" style={{ left: percent(start), width: duration > 0 ? `${((end - start) / duration) * 100}%` : '0%' }} />
             <div className="trim-playhead" style={{ left: percent(current) }} aria-hidden="true" />
-            <input type="range" className="trim-handle trim-handle-start" aria-label="편집 시작 구간" aria-valuetext={`${start.toFixed(1)}초`} min={0} max={duration} step={0.05} value={start} disabled={editing} onChange={event => setBoundary('start', Number(event.target.value))} />
-            <input type="range" className="trim-handle trim-handle-end" aria-label="편집 종료 구간" aria-valuetext={`${end.toFixed(1)}초`} min={0} max={duration} step={0.05} value={end} disabled={editing} onChange={event => setBoundary('end', Number(event.target.value))} />
+            <input type="range" className={`trim-handle trim-handle-start ${topHandle === 'start' ? 'is-top' : ''}`} aria-label="편집 시작 구간" aria-valuetext={`${start.toFixed(1)}초`} min={0} max={duration} step={0.05} value={start} disabled={editing} onChange={event => setBoundary('start', Number(event.target.value))} />
+            <input type="range" className={`trim-handle trim-handle-end ${topHandle === 'end' ? 'is-top' : ''}`} aria-label="편집 종료 구간" aria-valuetext={`${end.toFixed(1)}초`} min={0} max={duration} step={0.05} value={end} disabled={editing} onChange={event => setBoundary('end', Number(event.target.value))} />
           </div>
           <div className="trim-scale" aria-hidden="true"><span>0:00</span><span>{formatDuration(duration * 1000)}</span></div>
           <div className="trim-fields">

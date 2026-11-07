@@ -226,7 +226,9 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     window.webContents.send('capture:resume-requested');
     await until(titlebar('리플레이 준비됨'), 20000);
     await wait(2500);
-    // F9 pressed while the F8 save is still running is queued, not dropped.
+    // F9 pressed while the F8 save is still running is queued, not dropped. A
+    // second F8 during that save is the same intent and must not save twice.
+    window.webContents.send('shortcut:save-replay');
     window.webContents.send('shortcut:save-replay');
     window.webContents.send('shortcut:toggle-recording');
     await until(titlebar('녹화 중'), 15000);
@@ -234,9 +236,30 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     window.webContents.send('shortcut:toggle-recording');
     await until(titlebar('리플레이 준비됨'), 15000);
     await until('window.pulseClip.listClips().then(result => result.clips.length === 5)', 15000);
+    await wait(1000);
+    assert.equal((await run('window.pulseClip.listClips()')).clips.length, 5, 'A repeated F8 during a save saves one replay');
     window.webContents.send('capture:stop-requested');
     await until(titlebar('대기 중'));
-    console.log('Desktop media: source recovery, replay buffer gauge and audio meter, recording + simultaneous replay, rename, trim, cancel, original preservation, MP4 range/playback, minimum window layout, settings persistence, shortcut validation, F8-while-off, resume after lock and queued hotkeys passed.');
+    // Onboarding must stay finishable at the minimum window size.
+    await run('window.pulseClip.updateSettings({ completedOnboarding: false })');
+    window.webContents.reload();
+    await until('Boolean(document.querySelector(".onboarding-modal"))');
+    for (let step = 0; step < 3; step += 1) await click('계속하기');
+    const finish = await run(`(() => {
+      const modal = document.querySelector('.onboarding-modal').getBoundingClientRect();
+      const button = [...document.querySelectorAll('.onboarding-footer button')].at(-1);
+      const box = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return { inside: box.bottom <= modal.bottom + 0.5, reachable: button.contains(hit), label: button.textContent.trim() };
+    })()`);
+    assert.deepEqual(finish, { inside: true, reachable: true, label: 'PulseClip 시작' }, 'Onboarding finish button fits at 1080x700');
+    // The quality presets follow the radio pattern: arrow keys move and select.
+    await run('document.querySelector(".onboarding-presets [aria-checked=true]").focus()');
+    const before = await run('document.querySelector(".onboarding-presets [aria-checked=true]").textContent');
+    await run('document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }))');
+    assert.notEqual(await run('document.querySelector(".onboarding-presets [aria-checked=true]").textContent'), before);
+    assert.ok(await run('document.activeElement.getAttribute("aria-checked") === "true"'), 'Focus follows the selected preset');
+    console.log('Desktop media: source recovery, replay buffer gauge and audio meter, recording + simultaneous replay, rename, trim, cancel, original preservation, MP4 range/playback, minimum window layout, settings persistence, shortcut validation, F8-while-off, resume after lock, queued and repeated hotkeys and onboarding at minimum size passed.');
   }
   console.log('Desktop smoke: bootstrap, navigation, settings, diagnostics passed.');
   app.exit(0);

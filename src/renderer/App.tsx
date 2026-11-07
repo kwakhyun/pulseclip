@@ -92,8 +92,11 @@ export default function App() {
   const shutdownStartedRef = useRef(false);
   const busyRef = useRef(false);
   // Hotkeys pressed while another capture action runs wait here instead of
-  // being dropped. Each action is kept once, so mashing F8 saves one replay.
+  // being dropped. Each action is kept once, and pressing the action that is
+  // already running is ignored, so mashing F8 saves one replay and a second
+  // F9 does not flip recording back.
   const queuedHotkeys = useRef<Array<{ action: HotkeyAction; at: number }>>([]);
+  const runningHotkey = useRef<HotkeyAction | null>(null);
   const settingsRef = useRef<AppSettings | null>(null);
 
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
@@ -119,39 +122,58 @@ export default function App() {
   };
   const drainHotkeys = () => {
     if (busyRef.current) return;
-    const next = queuedHotkeys.current.shift();
-    if (!next) return;
-    if (Date.now() - next.at > HOTKEY_QUEUE_LIMIT_MS) {
-      queuedHotkeys.current = [];
+    const now = Date.now();
+    const fresh = queuedHotkeys.current.filter(entry => now - entry.at <= HOTKEY_QUEUE_LIMIT_MS);
+    const expired = queuedHotkeys.current.length - fresh.length;
+    queuedHotkeys.current = fresh;
+    if (expired > 0) {
       showToast('info', '이전 작업이 길어져 단축키 입력을 취소했습니다', '원하는 장면이 지나갔다면 다시 눌러 주세요.');
       signal('failed', { title: '단축키 입력을 취소했습니다', body: '이전 작업이 길어졌습니다. 필요하면 다시 눌러 주세요.' });
-      return;
     }
+    const next = queuedHotkeys.current.shift();
+    if (!next) return;
     actionsRef.current[next.action]();
+    // An action that stops at a guard never sets busy, so nothing would drain the rest.
+    if (!busyRef.current && queuedHotkeys.current.length > 0) window.setTimeout(drainHotkeys, 0);
   };
   /** Returns true when the action was deferred behind a running one. */
   const deferHotkey = (action: HotkeyAction): boolean => {
     if (!busyRef.current) return false;
-    if (!queuedHotkeys.current.some(entry => entry.action === action)) {
-      queuedHotkeys.current.push({ action, at: Date.now() });
-    }
+    // A second press of the running action means "did it hear me?", not "do it twice".
+    if (runningHotkey.current === action) return true;
+    const queued = queuedHotkeys.current.find(entry => entry.action === action);
+    if (queued) queued.at = Date.now();
+    else queuedHotkeys.current.push({ action, at: Date.now() });
+    return true;
+  };
+  /** Replay is turning on or reconnecting, so there is nothing to save or record yet. */
+  const captureNotReady = (action: HotkeyAction): boolean => {
+    const current = engine.getTelemetry();
+    const recovering = current.phase === 'recovering';
+    const preparing = current.phase === 'starting' || (action === 'saveReplay' && current.bufferSeconds < 1);
+    if (!recovering && !preparing) return false;
+    const title = recovering ? '장치 연결을 복구하는 중입니다' : '리플레이를 준비하는 중입니다';
+    const body = recovering ? '복구가 끝나면 다시 눌러 주세요.' : '몇 초 뒤 다시 눌러 주세요.';
+    showToast('info', title, body);
+    signal('failed', { title, body });
     return true;
   };
   const [refreshingSources, setRefreshingSources] = useState(false);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Clip | null>(null);
+  const [permanentDeleteCandidate, setPermanentDeleteCandidate] = useState<Clip | null>(null);
   const [microphones, setMicrophones] = useState<AudioInputDevice[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [pendingPage, setPendingPage] = useState<NavigationPage | null>(null);
 
   const showToast = useCallback(
-    (tone: ToastMessage['tone'], title: string, description?: string) => {
+    (tone: ToastMessage['tone'], title: string, description?: string, persistent = tone === 'error') => {
       const id = ++toastId.current;
       setToasts((current) => [...current.slice(-2), { id, tone, title, description }]);
       // Errors stay until dismissed; they often explain why a clip is missing.
-      if (tone !== 'error') {
+      if (!persistent) {
         window.setTimeout(() => {
           setToasts((current) => current.filter((toast) => toast.id !== id));
         }, 5000);
@@ -308,6 +330,16 @@ export default function App() {
         setSources(initialSources);
         setShortcutRegistration(data.shortcutRegistration);
         void refreshMicrophones();
+        if (data.hotkeyReplacements.length > 0) {
+          const changes = data.hotkeyReplacements
+            .map(item => `${item.action === 'saveReplay' ? '리플레이 저장' : '녹화'} ${displayShortcut(item.previous)} → ${displayShortcut(item.current)}`)
+            .join(', ');
+          // Shown until dismissed: PulseClip often starts hidden in the tray.
+          showToast('info', '저장된 단축키를 안전한 키로 바꿨습니다', `${changes}. 문자·숫자 키만으로는 다른 앱의 입력을 막을 수 있습니다. 설정에서 Ctrl이나 Alt와 함께 다시 지정할 수 있어요.`, true);
+          if (!document.hasFocus()) {
+            void window.pulseClip.notify('PulseClip 단축키를 바꿨습니다', `${changes}. 설정에서 다시 지정할 수 있어요.`).catch(() => undefined);
+          }
+        }
 
         if (data.settings.completedOnboarding && data.settings.autoStartBuffer) {
           const source = findStoredSource(initialSources, data.settings);
@@ -402,6 +434,8 @@ export default function App() {
     try {
       await engine.start(source, captureSettings);
       showToast('success', message, `${displayShortcut(captureSettings.hotkeys.saveReplay)}을 눌러 최근 순간을 저장하세요.`);
+      // In a fullscreen game the sound is the only sign that replay is now on.
+      signal('started');
       return true;
     } catch (error) {
       showToast('error', '캡처를 시작하지 못했습니다', messageOf(error));
@@ -436,6 +470,12 @@ export default function App() {
       signal('failed', { title: '녹화를 시작하지 않았습니다', body: '클립 편집 저장이 끝난 뒤 다시 시도해 주세요.' });
       return;
     }
+    // Recovery stops and resumes a running recording by itself.
+    if (!engine.isRecording() && engine.getTelemetry().phase === 'recovering') {
+      captureNotReady('toggleRecording');
+      return;
+    }
+    runningHotkey.current = 'toggleRecording';
     setBusy(true);
     try {
       if (engine.isRecording()) {
@@ -444,7 +484,8 @@ export default function App() {
         signal('stopped');
         return;
       }
-      if (!engine.isActive()) {
+      // While replay is still starting, start() joins that start instead of restarting.
+      if (!engine.isActive() || engine.getTelemetry().phase === 'starting') {
         if (!selectedSource || !settings) {
           setSourcePickerOpen(true);
           signal('failed', { title: '녹화할 화면을 먼저 선택해 주세요', body: 'PulseClip을 열어 캡처 소스를 선택해 주세요.' });
@@ -459,6 +500,7 @@ export default function App() {
       showToast('error', '녹화 동작을 완료하지 못했습니다', messageOf(error));
       signal('failed', { title: '녹화 동작을 완료하지 못했습니다', body: messageOf(error) });
     } finally {
+      runningHotkey.current = null;
       setBusy(false);
     }
   };
@@ -475,14 +517,13 @@ export default function App() {
           body: '지금부터 최근 장면을 모읍니다. 잠시 후 다시 저장해 주세요.',
         });
       }
-      await startCapture();
+      runningHotkey.current = 'saveReplay';
+      try { await startCapture(); }
+      finally { runningHotkey.current = null; }
       return;
     }
-    if (engine.getTelemetry().phase === 'recovering') {
-      showToast('info', '장치 연결을 복구하는 중입니다', '복구가 끝나면 다시 저장해 주세요.');
-      signal('failed', { title: '장치 연결을 복구하는 중입니다', body: '복구가 끝나면 다시 저장해 주세요.' });
-      return;
-    }
+    if (captureNotReady('saveReplay')) return;
+    runningHotkey.current = 'saveReplay';
     setBusy(true);
     try {
       const clip = await engine.saveReplay();
@@ -492,11 +533,14 @@ export default function App() {
       showToast('error', '리플레이를 저장하지 못했습니다', messageOf(error));
       signal('failed', { title: '리플레이를 저장하지 못했습니다', body: messageOf(error) });
     } finally {
+      runningHotkey.current = null;
       setBusy(false);
     }
   };
 
   const stopCapture = () => {
+    // An explicit or lock-screen stop must not be undone by a queued hotkey.
+    queuedHotkeys.current = [];
     if (!engine.isActive()) return;
     void engine.stop().catch((error) =>
       showToast('error', '캡처를 종료하지 못했습니다', messageOf(error)),
@@ -506,6 +550,7 @@ export default function App() {
   const shutdown = () => {
     if (shutdownStartedRef.current) return;
     shutdownStartedRef.current = true;
+    queuedHotkeys.current = [];
     void editor.cancel().then(() => engine.stop())
       .catch(() => undefined)
       .then(() => window.pulseClip.completeShutdown())
@@ -644,23 +689,39 @@ export default function App() {
     }
   };
 
-  const confirmDelete = async () => {
-    const clip = deleteCandidate;
-    if (!clip) return;
-    setDeleteCandidate(null);
+  const deleteClip = async (clip: Clip, permanent: boolean) => {
     try {
-      const result = await window.pulseClip.deleteClip(clip.id);
+      const result = await window.pulseClip.deleteClip(clip.id, permanent);
+      // Nothing was removed. Deleting for good needs its own answer.
+      if (result.outcome === 'trash-unavailable') {
+        setPermanentDeleteCandidate(clip);
+        return;
+      }
       setClips(result.clips);
       setStorage(result.storage);
       if (selectedClip?.id === clip.id) setSelectedClip(null);
       showToast(
         'success',
-        result.trashed ? '클립을 휴지통으로 옮겼습니다' : '클립을 영구 삭제했습니다',
-        result.trashed ? `${clip.title} · Windows 휴지통에서 되살릴 수 있습니다.` : `${clip.title} · 이 위치에는 휴지통이 없습니다.`,
+        result.outcome === 'trashed' ? '클립을 휴지통으로 옮겼습니다' : '클립을 영구 삭제했습니다',
+        result.outcome === 'trashed' ? `${clip.title} · Windows 휴지통에서 되살릴 수 있습니다.` : clip.title,
       );
     } catch (error) {
       showToast('error', '클립을 삭제하지 못했습니다', messageOf(error));
     }
+  };
+
+  const confirmDelete = () => {
+    const clip = deleteCandidate;
+    if (!clip) return;
+    setDeleteCandidate(null);
+    void deleteClip(clip, false);
+  };
+
+  const confirmPermanentDelete = () => {
+    const clip = permanentDeleteCandidate;
+    if (!clip) return;
+    setPermanentDeleteCandidate(null);
+    void deleteClip(clip, true);
   };
 
   const revealClip = async (clip: Clip) => {
@@ -752,7 +813,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <TitleBar telemetry={telemetry} />
+      <TitleBar telemetry={telemetry} initialMaximized={bootstrap.windowMaximized} />
       <Sidebar
         page={page}
         onNavigate={navigateToPage}
@@ -861,10 +922,18 @@ export default function App() {
       <ConfirmDialog
         open={Boolean(deleteCandidate)}
         title="이 클립을 삭제할까요?"
-        description="영상 파일을 Windows 휴지통으로 옮깁니다. 휴지통이 없는 위치(네트워크 드라이브 등)라면 영구 삭제됩니다."
+        description="영상 파일을 Windows 휴지통으로 옮깁니다. 휴지통에서 되살리면 이름과 즐겨찾기도 함께 돌아옵니다."
         confirmLabel="휴지통으로 이동"
         onCancel={() => setDeleteCandidate(null)}
-        onConfirm={() => void confirmDelete()}
+        onConfirm={confirmDelete}
+      />
+      <ConfirmDialog
+        open={Boolean(permanentDeleteCandidate)}
+        title="휴지통으로 옮길 수 없습니다. 영구 삭제할까요?"
+        description="휴지통이 없는 위치(네트워크 드라이브 등)이거나 파일이 휴지통 크기보다 큽니다. 아직 아무것도 삭제하지 않았으며, 영구 삭제하면 되살릴 수 없습니다."
+        confirmLabel="영구 삭제"
+        onCancel={() => setPermanentDeleteCandidate(null)}
+        onConfirm={confirmPermanentDelete}
       />
       <ConfirmDialog
         open={Boolean(pendingPage)}

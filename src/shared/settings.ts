@@ -1,5 +1,5 @@
 import type { AppSettings, CaptureResolution } from './types';
-import { hotkeyProblem, sanitizeShortcut } from './hotkeys';
+import { hotkeyProblem, sanitizeHotkeys, sanitizeShortcut } from './hotkeys';
 
 export { hotkeyProblem, sanitizeShortcut };
 
@@ -142,13 +142,7 @@ export function sanitizeSettings(
     ),
     autoCleanup: booleanValue(input.autoCleanup, defaults.autoCleanup),
     outputFolder: stringValue(input.outputFolder, defaults.outputFolder, 1024),
-    hotkeys: {
-      saveReplay: sanitizeShortcut(hotkeys.saveReplay, defaults.hotkeys.saveReplay),
-      toggleRecording: sanitizeShortcut(
-        hotkeys.toggleRecording,
-        defaults.hotkeys.toggleRecording,
-      ),
-    },
+    hotkeys: sanitizeHotkeys(hotkeys, defaults.hotkeys),
   };
 }
 

@@ -9,27 +9,44 @@ export type CapturePhase = 'idle' | 'starting' | 'recovering' | 'buffering' | 'r
  */
 export class PowerResumePolicy {
   private resumePending = false;
+  /** A restart is scheduled but waits for Windows to restore displays and audio. */
+  private settling = false;
 
   /** Returns true when capture should stop for this event. */
   onSuspendOrLock(phase: CapturePhase): boolean {
     const active = phase !== 'idle' && phase !== 'error';
     // Lock and then sleep arrive as two events; the second one sees an idle
-    // engine and must not forget that the first one interrupted capture.
-    this.resumePending ||= active;
+    // engine and must not forget that the first one interrupted capture. A lock
+    // during the settle delay also keeps the restart owed for the next unlock.
+    this.resumePending ||= active || this.settling;
+    this.settling = false;
     return active;
   }
 
-  /** Returns true when capture should restart now. */
+  /** Returns true when a restart should be scheduled after the settle delay. */
   onResumeOrUnlock(event: 'resume' | 'unlock-screen', screenLocked: boolean): boolean {
     if (!this.resumePending) return false;
     // Waking from sleep usually lands on the lock screen. Wait for unlock so
     // replay does not restart against the secure desktop.
     if (event === 'resume' && screenLocked) return false;
     this.resumePending = false;
+    this.settling = true;
+    return true;
+  }
+
+  /** Called when the settle delay ends. Returns true when capture should restart now. */
+  onSettled(screenLocked: boolean): boolean {
+    if (!this.settling) return false;
+    this.settling = false;
+    if (screenLocked) {
+      this.resumePending = true;
+      return false;
+    }
     return true;
   }
 
   cancel(): void {
     this.resumePending = false;
+    this.settling = false;
   }
 }

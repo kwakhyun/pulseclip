@@ -21,7 +21,7 @@ import type {
   ShortcutRegistration,
 } from '../../shared/types';
 import { QUALITY_PRESETS, matchesPreset } from '../../shared/quality-presets';
-import { acceleratorFromKeyboard, displayShortcut, hotkeyProblem, parseShortcut, formatShortcut } from '../../shared/hotkeys';
+import { acceleratorFromKeyboard, displayShortcut, hotkeyProblem, parseShortcut, formatShortcut, shortcutProblem } from '../../shared/hotkeys';
 import { mergeSettingsDraft } from '../settings-draft';
 import { formatBytes } from '../utils';
 import { UpdatePanel } from './UpdatePanel';
@@ -76,6 +76,12 @@ export function SettingsPage({
     setDraft((current) => ({ ...current, [key]: value }));
   };
   const shortcutError = hotkeyProblem(draft.hotkeys);
+  // Show each field's own reason; a duplicate marks both fields.
+  const saveKeyProblem = shortcutProblem(draft.hotkeys.saveReplay);
+  const recordKeyProblem = shortcutProblem(draft.hotkeys.toggleRecording);
+  const duplicateProblem = !saveKeyProblem && !recordKeyProblem ? shortcutError : null;
+  const saveFieldProblem = saveKeyProblem ?? duplicateProblem;
+  const recordFieldProblem = recordKeyProblem ?? duplicateProblem;
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   return (
@@ -140,13 +146,13 @@ export function SettingsPage({
             )}
           </SettingSection>
 
-          <SettingSection id="settings-replay" icon={<RotateCcw size={19} />} title="즉시 리플레이와 단축키" description="메모리에 유지할 최근 구간과 게임 중에 누를 단축키를 정합니다.">
+          <SettingSection id="settings-replay" icon={<RotateCcw size={19} />} title="즉시 리플레이와 단축키" description="메모리에 유지할 최근 구간과 게임 중에 누를 단축키를 정합니다. 켜 두었던 리플레이는 화면 잠금이나 절전에서 돌아오면 다시 켜집니다.">
             <RangeRow label="리플레이 길이" value={draft.replaySeconds} minimum={15} maximum={180} step={5} suffix="초" onChange={(value) => patch('replaySeconds', value)} />
-            <SettingRow label="리플레이 저장 단축키" hint={!shortcutRegistration.saveReplay ? '다른 앱이 이미 사용 중일 수 있습니다. 다른 키를 지정해 보세요.' : '칸을 누른 뒤 원하는 키를 누르세요. 게임 중에도 동작합니다.'}>
-              <HotkeyInput label="리플레이 저장 단축키" value={draft.hotkeys.saveReplay} onSuspend={onSuspendShortcuts} onChange={(value) => setDraft((current) => ({ ...current, hotkeys: { ...current.hotkeys, saveReplay: value } }))} valid={draft.hotkeys.saveReplay === settings.hotkeys.saveReplay ? shortcutRegistration.saveReplay : null} />
+            <SettingRow label="리플레이 저장 단축키" hint={saveFieldProblem ?? (!shortcutRegistration.saveReplay ? '다른 앱이 이미 사용 중일 수 있습니다. 다른 키를 지정해 보세요.' : '칸을 누른 뒤 원하는 키를 누르세요. 게임 중에도 동작합니다.')}>
+              <HotkeyInput label="리플레이 저장 단축키" value={draft.hotkeys.saveReplay} problem={saveFieldProblem} onSuspend={onSuspendShortcuts} onChange={(value) => setDraft((current) => ({ ...current, hotkeys: { ...current.hotkeys, saveReplay: value } }))} valid={draft.hotkeys.saveReplay === settings.hotkeys.saveReplay ? shortcutRegistration.saveReplay : null} />
             </SettingRow>
-            <SettingRow label="녹화 시작/종료 단축키" hint={!shortcutRegistration.toggleRecording ? '다른 앱이 이미 사용 중일 수 있습니다. 다른 키를 지정해 보세요.' : '문자·숫자 키는 Ctrl 또는 Alt와 함께 지정해야 합니다.'}>
-              <HotkeyInput label="녹화 시작/종료 단축키" value={draft.hotkeys.toggleRecording} onSuspend={onSuspendShortcuts} onChange={(value) => setDraft((current) => ({ ...current, hotkeys: { ...current.hotkeys, toggleRecording: value } }))} valid={draft.hotkeys.toggleRecording === settings.hotkeys.toggleRecording ? shortcutRegistration.toggleRecording : null} />
+            <SettingRow label="녹화 시작/종료 단축키" hint={recordFieldProblem ?? (!shortcutRegistration.toggleRecording ? '다른 앱이 이미 사용 중일 수 있습니다. 다른 키를 지정해 보세요.' : '문자·숫자 키는 Ctrl 또는 Alt와 함께 지정해야 합니다.')}>
+              <HotkeyInput label="녹화 시작/종료 단축키" value={draft.hotkeys.toggleRecording} problem={recordFieldProblem} onSuspend={onSuspendShortcuts} onChange={(value) => setDraft((current) => ({ ...current, hotkeys: { ...current.hotkeys, toggleRecording: value } }))} valid={draft.hotkeys.toggleRecording === settings.hotkeys.toggleRecording ? shortcutRegistration.toggleRecording : null} />
             </SettingRow>
           </SettingSection>
 
@@ -160,10 +166,10 @@ export function SettingsPage({
           </SettingSection>
 
           <SettingSection id="settings-behavior" icon={<Gamepad2 size={19} />} title="앱 동작" description="시작 방식과 게임 중 알림을 선택합니다.">
-            <ToggleRow icon={<Zap size={17} />} label="실행 후 자동으로 리플레이 준비" hint="마지막으로 선택한 소스를 바로 캡처합니다. 화면 잠금이나 절전에서 돌아오면 다시 켭니다." checked={draft.autoStartBuffer} onChange={(value) => patch('autoStartBuffer', value)} />
+            <ToggleRow icon={<Zap size={17} />} label="실행 후 자동으로 리플레이 준비" hint="PulseClip을 켜면 마지막으로 선택한 소스를 바로 캡처합니다." checked={draft.autoStartBuffer} onChange={(value) => patch('autoStartBuffer', value)} />
             <ToggleRow icon={<Power size={17} />} label="Windows 시작 시 실행" hint="트레이에서 조용히 시작합니다." checked={draft.launchAtStartup} onChange={(value) => patch('launchAtStartup', value)} />
             <ToggleRow icon={<Volume2 size={17} />} label="저장 효과음" hint="게임 중 단축키 결과를 짧은 소리로 알려 줍니다. 시스템 오디오를 녹음 중이면 효과음도 영상에 담길 수 있습니다." checked={draft.playSounds} onChange={(value) => patch('playSounds', value)} />
-            <ToggleRow icon={<Bell size={17} />} label="Windows 알림" hint="PulseClip이 백그라운드일 때 저장 결과와 문제를 알립니다. 전체 화면 게임 중에는 Windows 방해 금지 모드가 숨길 수 있습니다." checked={draft.showNotifications} onChange={(value) => patch('showNotifications', value)} />
+            <ToggleRow icon={<Bell size={17} />} label="Windows 알림" hint="PulseClip 창을 보고 있지 않을 때 저장 결과와 문제를 알립니다. 전체 화면 게임 중에는 Windows 방해 금지 모드가 숨길 수 있습니다." checked={draft.showNotifications} onChange={(value) => patch('showNotifications', value)} />
             <ToggleRow icon={<Monitor size={17} />} label="마우스 커서 녹화" hint="캡처 환경이 지원할 때 영상에 마우스 포인터를 표시합니다." checked={draft.recordCursor} onChange={value => patch('recordCursor', value)} />
             <ToggleRow icon={<Power size={17} />} label="닫을 때 트레이로 최소화" hint="창을 닫아도 리플레이 준비 상태를 유지합니다." checked={draft.minimizeToTray} onChange={(value) => patch('minimizeToTray', value)} />
           </SettingSection>
@@ -217,23 +223,33 @@ function RangeRow({ label, value, minimum, maximum, step, suffix, onChange }: { 
  * Electron accelerator syntax. Global shortcuts are paused while the field
  * listens so pressing the current F8 does not save a replay instead.
  */
-function HotkeyInput({ label, value, onChange, valid, onSuspend }: { label: string; value: string; onChange: (value: string) => void; valid: boolean | null; onSuspend: (suspended: boolean) => void }) {
+/** Main restores global shortcuts after 20 s on its own; renew well before that while listening. */
+const SHORTCUT_SUSPEND_RENEW_MS = 10_000;
+
+function HotkeyInput({ label, value, onChange, valid, problem, onSuspend }: { label: string; value: string; onChange: (value: string) => void; valid: boolean | null; problem: string | null; onSuspend: (suspended: boolean) => void }) {
   const [listening, setListening] = useState(false);
   const listeningRef = useRef(false);
   useEffect(() => () => { if (listeningRef.current) onSuspend(false); }, [onSuspend]);
+  // Otherwise the field still says "입력 대기" while F8 already fires the replay again.
+  useEffect(() => {
+    if (!listening) return;
+    const timer = window.setInterval(() => onSuspend(true), SHORTCUT_SUSPEND_RENEW_MS);
+    return () => window.clearInterval(timer);
+  }, [listening, onSuspend]);
   const setMode = (next: boolean) => {
     if (listeningRef.current === next) return;
     listeningRef.current = next;
     setListening(next);
     onSuspend(next);
   };
-  const status = listening ? '입력 대기' : valid === null ? '저장 시 적용' : valid ? '등록됨' : '충돌';
+  const invalid = Boolean(problem) || valid === false;
+  const status = listening ? '입력 대기' : problem ? '사용 불가' : valid === null ? '저장 시 적용' : valid ? '등록됨' : '충돌';
   return (
-    <label className={`hotkey-input ${valid === false ? 'invalid' : ''} ${listening ? 'listening' : ''}`}>
+    <label className={`hotkey-input ${invalid ? 'invalid' : ''} ${listening ? 'listening' : ''}`}>
       <Keyboard size={15} />
       <input
         aria-label={label}
-        aria-invalid={valid === false}
+        aria-invalid={invalid}
         aria-description="칸을 선택한 뒤 원하는 키 조합을 누르세요. Esc는 취소합니다."
         value={listening ? '' : displayShortcut(value)}
         placeholder={listening ? '원하는 키 조합을 누르세요…' : ''}

@@ -50,6 +50,17 @@ describe('settings sanitization', () => {
     expect(sanitizeShortcut('A;Remove-Item', 'F8')).toBe('F8');
     expect(sanitizeShortcut('K', 'F8')).toBe('F8');
   });
+
+  it('replaces a v0.1.4 single-letter hotkey without colliding with the key the user kept', () => {
+    const defaults = createDefaultSettings('C:\\Clips');
+    const upgrade = (saveReplay: string, toggleRecording: string) =>
+      sanitizeSettings({ ...defaults, hotkeys: { saveReplay, toggleRecording } }, defaults).hotkeys;
+    expect(upgrade('K', 'F8')).toEqual({ saveReplay: 'F9', toggleRecording: 'F8' });
+    expect(upgrade('F9', 'Shift+L')).toEqual({ saveReplay: 'F9', toggleRecording: 'F8' });
+    expect(upgrade('Shift+K', 'Shift+L')).toEqual({ saveReplay: 'F8', toggleRecording: 'F9' });
+    expect(upgrade('K', 'Alt+F2')).toEqual({ saveReplay: 'F8', toggleRecording: 'Alt+F2' });
+    expect(upgrade('F7', 'f7')).toEqual({ saveReplay: 'F8', toggleRecording: 'F9' });
+  });
 });
 
 describe('resolutionSize', () => {

@@ -75,7 +75,7 @@ const api: PulseClipApi = {
   beginTrim: (request) => ipcRenderer.invoke(IPC.beginTrim, request),
   checkForUpdates: () => ipcRenderer.invoke(IPC.checkForUpdates),
   openReleasePage: () => ipcRenderer.invoke(IPC.openReleasePage),
-  deleteClip: (id: string) => ipcRenderer.invoke(IPC.deleteClip, id),
+  deleteClip: (id: string, permanent = false) => ipcRenderer.invoke(IPC.deleteClip, id, permanent),
   startClipDrag: (id: string) => ipcRenderer.invoke(IPC.startClipDrag, id),
   suspendShortcuts: (suspended: boolean) => ipcRenderer.invoke(IPC.suspendShortcuts, suspended),
   revealClip: (id: string) => ipcRenderer.invoke(IPC.revealClip, id),

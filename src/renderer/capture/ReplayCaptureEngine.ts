@@ -419,7 +419,8 @@ export class ReplayCaptureEngine {
     try {
       const clip = await writer.finish();
       this.clipListeners.forEach((listener) => listener(clip));
-      await window.pulseClip.notify('녹화가 저장되었습니다', clip.title).catch(() => undefined);
+      // The window already shows a toast while it is in front.
+      if (!document.hasFocus()) await window.pulseClip.notify('녹화가 저장되었습니다', clip.title).catch(() => undefined);
       return clip;
     } finally {
       this.recordingStartedAt = 0;
@@ -451,10 +452,13 @@ export class ReplayCaptureEngine {
         fps: this.settings.fps,
       });
       this.clipListeners.forEach((listener) => listener(clip));
-      await window.pulseClip.notify(
-        '리플레이가 저장되었습니다',
-        `최근 ${Math.round(snapshot.durationSeconds)}초 · ${clip.title}`,
-      ).catch(() => undefined);
+      // The window already shows a toast while it is in front.
+      if (!document.hasFocus()) {
+        await window.pulseClip.notify(
+          '리플레이가 저장되었습니다',
+          `최근 ${Math.round(snapshot.durationSeconds)}초 · ${clip.title}`,
+        ).catch(() => undefined);
+      }
       return clip;
     } finally {
       this.savingReplay = false;

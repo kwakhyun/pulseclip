@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -117,16 +117,17 @@ describe('ClipRepository metadata recovery', () => {
     await expect(repository.list()).resolves.toHaveLength(0);
   });
 
-  it('moves manual deletes to the Recycle Bin and falls back when the drive has none', async () => {
+  it('moves manual deletes to the Recycle Bin and never deletes permanently without being asked', async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-clips-'));
     temporaryDirectories.push(directory);
     const settings = { get: () => ({ outputFolder: directory, storageLimitGb: 20, autoCleanup: true }) } as unknown as SettingsStore;
-    const trashed: string[] = [];
+    const recycleBin = new Map<string, Buffer>();
     let trashAvailable = true;
     const repository = new ClipRepository(settings, new Logger(directory), {
       trash: async filePath => {
-        if (!trashAvailable) throw new Error('No Recycle Bin');
-        trashed.push(path.basename(filePath));
+        // Windows also refuses files larger than the Recycle Bin allows.
+        if (!trashAvailable) throw new Error('File is too big for the Recycle Bin');
+        recycleBin.set(filePath, await readFile(filePath));
         await rm(filePath);
       },
     });
@@ -134,12 +135,41 @@ describe('ClipRepository metadata recovery', () => {
     for (const name of ['PulseClip_a_Replay.mp4', 'PulseClip_b_Replay.mp4']) await writeFile(path.join(directory, name), Buffer.alloc(1024));
     const first = await repository.registerCompletedFile(path.join(directory, 'PulseClip_a_Replay.mp4'), request, 1000);
     const second = await repository.registerCompletedFile(path.join(directory, 'PulseClip_b_Replay.mp4'), request, 1000);
+    await repository.rename(first.id, '보스 처치');
+    await repository.setFavorite(first.id, true);
 
-    await expect(repository.delete(first.id)).resolves.toEqual({ trashed: true });
-    expect(trashed).toEqual(['PulseClip_a_Replay.mp4']);
+    await expect(repository.delete(first.id)).resolves.toBe('trashed');
+    expect([...recycleBin.keys()].map(file => path.basename(file))).toEqual(['PulseClip_a_Replay.mp4']);
+    expect((await repository.list()).map(clip => clip.id)).toEqual([second.id]);
+    // Restoring the MP4 from the Recycle Bin brings back its name and favorite.
+    for (const [file, bytes] of recycleBin) await writeFile(file, bytes);
+    expect(await repository.get(first.id)).toMatchObject({ title: '보스 처치', favorite: true, kind: 'replay' });
+
     trashAvailable = false;
-    await expect(repository.delete(second.id)).resolves.toEqual({ trashed: false });
-    await expect(repository.list()).resolves.toHaveLength(0);
+    await expect(repository.delete(second.id)).resolves.toBe('trash-unavailable');
+    expect(await repository.get(second.id)).toMatchObject({ id: second.id });
+    await expect(repository.delete(second.id, true)).resolves.toBe('deleted');
+    expect((await repository.list()).map(clip => clip.id)).toEqual([first.id]);
+  });
+
+  it('prunes metadata of clips that stayed in the Recycle Bin for a month', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'pulseclip-clips-'));
+    temporaryDirectories.push(directory);
+    const settings = { get: () => ({ outputFolder: directory, storageLimitGb: 20, autoCleanup: true }) } as unknown as SettingsStore;
+    const repository = new ClipRepository(settings, new Logger(directory), { trash: filePath => rm(filePath) });
+    const request = { kind: 'replay' as const, sourceName: 'Test', width: 640, height: 360, fps: 30, codec: 'AVC' };
+    const names = ['PulseClip_old_Replay.mp4', 'PulseClip_new_Replay.mp4'];
+    for (const name of names) {
+      await writeFile(path.join(directory, name), Buffer.alloc(1024));
+      const clip = await repository.registerCompletedFile(path.join(directory, name), request, 1000);
+      await repository.delete(clip.id);
+    }
+    const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
+    await utimes(path.join(directory, `${names[0]}.pulseclip.json`), old, old);
+
+    await repository.recoverPartFiles();
+    await expect(stat(path.join(directory, `${names[0]}.pulseclip.json`))).rejects.toThrow();
+    await expect(stat(path.join(directory, `${names[1]}.pulseclip.json`))).resolves.toBeTruthy();
   });
 
   it('reports automatic cleanup so people know which clips disappeared', async () => {
